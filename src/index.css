@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Custom Properties — Light Theme ─── */
+:root {
+  --surface-0:   #FFFFFF;
+  --surface-50:  #F8FAFC;
+  --surface-100: #F1F5F9;
+  --surface-200: #E2E8F0;
+  --surface-300: #CBD5E1;
+
+  --text-primary:   #0F172A;
+  --text-secondary: #475569;
+  --text-muted:     #94A3B8;
+  --text-inverse:   #FFFFFF;
+
+  --border-subtle: rgba(15, 23, 42, 0.06);
+  --border-base:   rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+}
+
+/* ─── CSS Custom Properties — Dark Theme ─── */
+.dark {
+  --surface-0:   #0C0E14;
+  --surface-50:  #111318;
+  --surface-100: #181B23;
+  --surface-200: #1F2230;
+  --surface-300: #272B3A;
+
+  --text-primary:   #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+  --text-inverse:   #0F172A;
+
+  --border-subtle: rgba(241, 245, 249, 0.05);
+  --border-base:   rgba(241, 245, 249, 0.09);
+  --border-strong: rgba(241, 245, 249, 0.14);
+}
+
+/* ─── Base ─── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--surface-0);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-300);
+  border-radius: 999px;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background-color: rgba(99, 91, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* ─── Focus visible ─── */
+:focus-visible {
+  outline: 2px solid #635BFF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Number input: hide arrows ─── */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ─── Utility ─── */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
