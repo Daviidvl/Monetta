@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb } from 'lucide-react'
+import {
+  AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb, TrendingUp, TrendingDown,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -13,6 +15,7 @@ import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { IncomeForm } from '../income/IncomeForm'
 import { useDashboardData } from '../../hooks/useData'
+import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency, parseNumber } from '../../utils/format'
 import { dueDayLabel } from '../../utils/date'
 import { generateInsights, getDailyTip } from '../../utils/insights'
@@ -39,21 +42,43 @@ export function DashboardPage() {
     dueSoon, overdue, installments, totalInvested,
   } = data
 
+  // Live crypto prices for portfolio value
+  const cryptoIds = useMemo(
+    () => investments.filter(i => i.coinId).map(i => i.coinId!),
+    [investments],
+  )
+  const { prices } = useCryptoPrices(cryptoIds)
+
+  const totalCurrentInvested = useMemo(() => {
+    return investments.reduce((sum, inv) => {
+      if (inv.coinId && inv.quantity && prices[inv.coinId]) {
+        return sum + inv.quantity * prices[inv.coinId]
+      }
+      return sum + inv.amount
+    }, 0)
+  }, [investments, prices])
+
+  const portfolioPnl    = totalCurrentInvested - totalInvested
+  const hasCrypto       = cryptoIds.length > 0 && Object.keys(prices).length > 0
+
   const { theme, toggleTheme } = useAppStore()
 
-  // Fix: pass totalIncome so insights use salary + extras
   const insights = generateInsights(profile, bills, investments, goals, totalIncome)
-  const tip = getDailyTip()
+  const tip      = getDailyTip()
 
-  const [incomeOpen, setIncomeOpen] = useState(false)
-  const [editIncome, setEditIncome] = useState<IncomeEntry | null>(null)
+  const [incomeOpen, setIncomeOpen]               = useState(false)
+  const [editIncome, setEditIncome]               = useState<IncomeEntry | null>(null)
   const [deleteIncomeTarget, setDeleteIncomeTarget] = useState<IncomeEntry | null>(null)
-  const [editSalaryOpen, setEditSalaryOpen] = useState(false)
-  const [salaryInput, setSalaryInput] = useState('')
-  const [savingSalary, setSavingSalary] = useState(false)
+  const [editSalaryOpen, setEditSalaryOpen]       = useState(false)
+  const [salaryInput, setSalaryInput]             = useState('')
+  const [savingSalary, setSavingSalary]           = useState(false)
 
   const pctExpenses = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0
-  const mainGoal = goals[0]
+  const mainGoal    = goals[0]
+
+  // Suggestion: show when there's meaningful free cash
+  const suggestionAmount = remaining > 0 ? Math.round(remaining * 0.2) : 0
+  const showSuggestion   = remaining >= 150 && (investments.length > 0 || mainGoal)
 
   async function handleSaveSalary() {
     const val = parseNumber(salaryInput)
@@ -93,17 +118,29 @@ export function DashboardPage() {
             <p className="text-3xl font-bold text-white tracking-tight">
               {formatCurrency(remaining)}
             </p>
-            <div className="mt-3 flex items-center gap-3 text-xs text-white/70 flex-wrap">
+
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/70">
               <span>Receita: {formatCurrency(totalIncome)}</span>
               <span>·</span>
               <span>Despesas: {formatCurrency(totalExpenses)}</span>
-              {totalInvested > 0 && (
+              {totalCurrentInvested > 0 && (
                 <>
                   <span>·</span>
-                  <span>Investido: {formatCurrency(totalInvested)}</span>
+                  <span className="flex items-center gap-1">
+                    Investido: {formatCurrency(totalCurrentInvested)}
+                    {hasCrypto && portfolioPnl !== 0 && (
+                      <span className={`flex items-center gap-0.5 font-medium ${
+                        portfolioPnl >= 0 ? 'text-emerald-300' : 'text-red-300'
+                      }`}>
+                        {portfolioPnl >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                        {portfolioPnl >= 0 ? '+' : ''}{formatCurrency(portfolioPnl)}
+                      </span>
+                    )}
+                  </span>
                 </>
               )}
             </div>
+
             {totalIncome > 0 && (
               <div className="mt-3">
                 <div className="flex justify-between text-xs text-white/70 mb-1.5">
@@ -123,12 +160,40 @@ export function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Budget ring chart */}
-        {(totalExpenses > 0 || totalInvested > 0) && totalIncome > 0 && (
+        {/* Free cash suggestion */}
+        {showSuggestion && (
+          <motion.div variants={fadeUp}>
+            <div className="flex items-start gap-3 p-4 rounded-2xl bg-status-success/8 border border-status-success/20">
+              <div className="w-7 h-7 rounded-xl bg-status-success/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <TrendingUp size={14} className="text-status-success" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-text-primary">
+                  {formatCurrency(remaining)} livres este mês
+                </p>
+                <p className="text-sm text-text-secondary mt-0.5">
+                  Considere guardar {formatCurrency(suggestionAmount)} (20%)
+                  {mainGoal
+                    ? ` para sua meta "${mainGoal.name}"`
+                    : ' em investimentos'}.
+                </p>
+              </div>
+              <Link
+                to={mainGoal ? '/metas' : '/investimentos'}
+                className="text-xs text-status-success font-medium flex-shrink-0 mt-0.5"
+              >
+                Ver <ChevronRight size={11} className="inline" />
+              </Link>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Budget ring */}
+        {(totalExpenses > 0 || totalCurrentInvested > 0) && totalIncome > 0 && (
           <motion.div variants={fadeUp}>
             <Card className="flex flex-col items-center py-5">
               <p className="text-xs text-text-muted mb-4">Visão geral do orçamento</p>
-              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalInvested} />
+              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalCurrentInvested} />
               <div className="mt-4 grid grid-cols-3 gap-3 w-full">
                 <div className="text-center">
                   <p className="text-[10px] text-text-muted">Receita</p>
@@ -149,7 +214,7 @@ export function DashboardPage() {
           </motion.div>
         )}
 
-        {/* ─── Entradas (income) card ─── */}
+        {/* Entradas do mês */}
         <motion.div variants={fadeUp}>
           <Card padded={false}>
             <div className="flex items-center justify-between px-4 pt-4 pb-3">
@@ -167,8 +232,8 @@ export function DashboardPage() {
               </button>
             </div>
 
-            {/* Salary row — editable */}
             <div className="border-t border-border-subtle">
+              {/* Salary row — editable */}
               <div className="flex items-center gap-3 px-4 py-2.5">
                 <div className="w-7 h-7 rounded-lg bg-status-success/12 flex items-center justify-center flex-shrink-0">
                   <span className="text-xs font-bold text-status-success">$</span>
@@ -190,7 +255,6 @@ export function DashboardPage() {
                 </button>
               </div>
 
-              {/* Extra income entries */}
               {incomeEntries.map(entry => (
                 <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5 border-t border-border-subtle">
                   <div className="w-7 h-7 rounded-lg bg-accent-500/10 flex items-center justify-center flex-shrink-0">
@@ -204,16 +268,10 @@ export function DashboardPage() {
                     +{formatCurrency(entry.amount)}
                   </p>
                   <div className="flex gap-0.5 flex-shrink-0">
-                    <button
-                      onClick={() => setEditIncome(entry)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors"
-                    >
+                    <button onClick={() => setEditIncome(entry)} className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors">
                       <Pencil size={11} />
                     </button>
-                    <button
-                      onClick={() => setDeleteIncomeTarget(entry)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-status-danger/8 hover:text-status-danger transition-colors"
-                    >
+                    <button onClick={() => setDeleteIncomeTarget(entry)} className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-status-danger/8 hover:text-status-danger transition-colors">
                       <Trash2 size={11} />
                     </button>
                   </div>
@@ -287,8 +345,8 @@ export function DashboardPage() {
               <div className="px-4 pb-4 space-y-4">
                 {installments.slice(0, 3).map(bill => {
                   const total = bill.installmentTotal ?? 1
-                  const paid = bill.installmentPaid ?? 0
-                  const rem = total - paid
+                  const paid  = bill.installmentPaid ?? 0
+                  const rem   = total - paid
                   return (
                     <div key={bill.id}>
                       <div className="flex items-center justify-between mb-1.5">
@@ -358,8 +416,6 @@ export function DashboardPage() {
                 <p className="text-sm text-text-muted py-2">Adicione contas e receitas para ver seus insights.</p>
               )}
             </div>
-
-            {/* Daily tip */}
             <div className="mx-4 mb-4 mt-2 flex items-start gap-2.5 p-3 rounded-xl bg-accent-500/8">
               <Lightbulb size={14} className="text-accent-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-text-secondary leading-relaxed">{tip.text}</p>
@@ -386,25 +442,13 @@ export function DashboardPage() {
       </motion.div>
 
       {/* Modals */}
-      <Modal
-        open={incomeOpen}
-        onClose={() => setIncomeOpen(false)}
-        title="Adicionar entrada"
-        description="Registre uma receita extra deste mês."
-      >
+      <Modal open={incomeOpen} onClose={() => setIncomeOpen(false)} title="Adicionar entrada" description="Registre uma receita extra deste mês.">
         <IncomeForm onClose={() => setIncomeOpen(false)} />
       </Modal>
-
       <Modal open={!!editIncome} onClose={() => setEditIncome(null)} title="Editar entrada">
         {editIncome && <IncomeForm income={editIncome} onClose={() => setEditIncome(null)} />}
       </Modal>
-
-      <Modal
-        open={editSalaryOpen}
-        onClose={() => setEditSalaryOpen(false)}
-        title="Editar salário base"
-        description="Como sua renda é variável, ajuste o valor sempre que necessário."
-      >
+      <Modal open={editSalaryOpen} onClose={() => setEditSalaryOpen(false)} title="Editar salário base" description="Como sua renda é variável, ajuste o valor sempre que necessário.">
         <div className="space-y-4 pt-1">
           <Input
             label="Salário base este mês"
@@ -415,16 +459,11 @@ export function DashboardPage() {
             onChange={e => setSalaryInput(e.target.value)}
             placeholder="0,00"
           />
-          <Button
-            className="w-full"
-            onClick={handleSaveSalary}
-            loading={savingSalary}
-          >
+          <Button className="w-full" onClick={handleSaveSalary} loading={savingSalary}>
             Salvar
           </Button>
         </div>
       </Modal>
-
       <ConfirmDialog
         open={!!deleteIncomeTarget}
         onClose={() => setDeleteIncomeTarget(null)}

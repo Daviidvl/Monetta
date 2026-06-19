@@ -13,7 +13,7 @@ import { BillForm } from './BillForm'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
 import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
-import type { Priority } from '../../types'
+import type { Bill, Priority } from '../../types'
 
 type Tab = 'all' | 'pending' | 'paid' | 'installments' | 'history'
 
@@ -25,15 +25,75 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'history',      label: 'Histórico' },
 ]
 
-const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const MONTH_NAMES = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
+]
 
 const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
 
+// ─── Paid bills grouped by month ─────────────────────────────────────────────
+function PaidByMonth({ bills }: { bills: Bill[] }) {
+  const grouped = useMemo(() => {
+    const map = new Map<string, Bill[]>()
+    for (const bill of bills) {
+      const m = bill.paidMonth ?? (bill.paidAt ? new Date(bill.paidAt).getMonth() + 1 : 0)
+      const y = bill.paidYear  ?? (bill.paidAt ? new Date(bill.paidAt).getFullYear()  : 0)
+      const key = m && y ? `${y}-${String(m).padStart(2, '0')}` : 'sem-data'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(bill)
+    }
+    return [...map.entries()].sort((a, b) => {
+      if (a[0] === 'sem-data') return 1
+      if (b[0] === 'sem-data') return -1
+      return b[0].localeCompare(a[0])
+    })
+  }, [bills])
+
+  if (grouped.length === 0) {
+    return (
+      <EmptyState
+        icon={<Receipt size={20} />}
+        title="Nenhuma conta paga ainda"
+        description="Marque suas contas como pagas para vê-las aqui."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {grouped.map(([key, groupBills]) => {
+        const [yearStr, monthStr] = key.split('-')
+        const month    = parseInt(monthStr)
+        const year     = parseInt(yearStr)
+        const total    = groupBills.reduce((s, b) => s + b.amount, 0)
+        const isKnown  = key !== 'sem-data' && !isNaN(month) && !isNaN(year)
+
+        return (
+          <div key={key}>
+            {/* Month header */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                {isKnown ? `${MONTH_NAMES[month - 1]} ${year}` : 'Sem data'}
+              </p>
+              <p className="text-xs font-semibold text-status-success">
+                {formatCurrency(total)}
+              </p>
+            </div>
+            <Card padded={false}>
+              {groupBills.map(bill => <BillCard key={bill.id} bill={bill} />)}
+            </Card>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── History tab (payment records) ───────────────────────────────────────────
 function HistoryTab() {
   const history = useLiveQuery(() => getBillHistory(), []) ?? []
 
-  // Group by month/year
   const grouped = useMemo(() => {
     const map = new Map<string, BillHistoryEntry[]>()
     for (const entry of history) {
@@ -55,40 +115,45 @@ function HistoryTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {grouped.map(([key, entries]) => {
-        const [year, month] = key.split('-').map(Number)
+        const [yearStr, monthStr] = key.split('-')
+        const month = parseInt(monthStr)
+        const year  = parseInt(yearStr)
         const total = entries.reduce((s, e) => s + e.amount, 0)
         return (
-          <Card key={key} padded={false}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
-              <p className="text-sm font-semibold text-text-primary">
-                Contas pagas de {MONTH_NAMES[month - 1]} {year}
+          <div key={key}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                {MONTH_NAMES[month - 1]} {year}
               </p>
-              <p className="text-sm font-semibold text-status-success">{formatCurrency(total)}</p>
+              <p className="text-xs font-semibold text-status-success">{formatCurrency(total)}</p>
             </div>
-            <div className="divide-y divide-border-subtle">
-              {entries.map((entry, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                  <p className="text-sm text-text-primary">{entry.billName}</p>
-                  <p className="text-sm font-medium text-text-secondary">{formatCurrency(entry.amount)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+            <Card padded={false}>
+              <div className="divide-y divide-border-subtle">
+                {entries.map((entry, i) => (
+                  <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                    <p className="text-sm text-text-primary">{entry.billName}</p>
+                    <p className="text-sm font-medium text-text-secondary">{formatCurrency(entry.amount)}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         )
       })}
     </div>
   )
 }
 
+// ─── Main page ────────────────────────────────────────────────────────────────
 export function BillsPage() {
   const [searchParams] = useSearchParams()
   const initialTab = (searchParams.get('tab') as Tab) ?? 'all'
 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
-  const [search, setSearch] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
+  const [search, setSearch]       = useState('')
+  const [addOpen, setAddOpen]     = useState(false)
 
   const bills = useBills()
   useProfile()
@@ -96,8 +161,8 @@ export function BillsPage() {
   const filtered = useMemo(() => {
     let list = [...bills]
 
-    if (activeTab === 'pending') list = list.filter(b => b.status !== 'paid')
-    if (activeTab === 'paid')    list = list.filter(b => b.status === 'paid')
+    if (activeTab === 'pending')      list = list.filter(b => b.status !== 'paid')
+    if (activeTab === 'paid')         list = list.filter(b => b.status === 'paid')
     if (activeTab === 'installments') list = list.filter(b => b.isInstallment)
 
     if (search.trim()) {
@@ -118,6 +183,7 @@ export function BillsPage() {
 
   const totalPending = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.amount, 0)
   const totalPaid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
+  const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-2xl mx-auto lg:px-6 lg:pt-8">
@@ -138,7 +204,7 @@ export function BillsPage() {
           <p className="text-lg font-semibold text-text-primary mt-0.5">{formatCurrency(totalPending)}</p>
         </Card>
         <Card className="p-3">
-          <p className="text-xs text-text-muted">Já pago</p>
+          <p className="text-xs text-text-muted">Já pago este mês</p>
           <p className="text-lg font-semibold text-status-success mt-0.5">{formatCurrency(totalPaid)}</p>
         </Card>
       </div>
@@ -160,8 +226,10 @@ export function BillsPage() {
         ))}
       </div>
 
-      {/* History tab */}
-      {activeTab === 'history' ? (
+      {/* Paid tab: grouped by month */}
+      {activeTab === 'paid' ? (
+        <PaidByMonth bills={paidBills} />
+      ) : activeTab === 'history' ? (
         <HistoryTab />
       ) : (
         <>
@@ -176,7 +244,6 @@ export function BillsPage() {
             />
           </div>
 
-          {/* List */}
           <Card padded={false}>
             <AnimatePresence mode="popLayout">
               {filtered.length === 0 ? (
