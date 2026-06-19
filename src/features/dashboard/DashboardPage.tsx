@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2 } from 'lucide-react'
+import { AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -8,14 +8,17 @@ import { ProgressBar } from '../../components/ui/ProgressBar'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { BudgetRing } from '../../components/ui/BudgetRing'
+import { Input } from '../../components/ui/Input'
+import { Button } from '../../components/ui/Button'
 import { IncomeForm } from '../income/IncomeForm'
 import { useDashboardData } from '../../hooks/useData'
-import { formatCurrency } from '../../utils/format'
+import { formatCurrency, parseNumber } from '../../utils/format'
 import { dueDayLabel } from '../../utils/date'
-import { generateInsights } from '../../utils/insights'
+import { generateInsights, getDailyTip } from '../../utils/insights'
 import { useAppStore } from '../../store/useAppStore'
 import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, type IncomeEntry } from '../../types'
-import { deleteIncome } from '../../database/queries'
+import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
 
 const stagger = {
   hidden: {},
@@ -27,43 +30,39 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] } },
 }
 
-function StatCard({ label, value, sub, trend }: {
-  label: string; value: string; sub?: string; trend?: 'up' | 'down' | 'neutral'
-}) {
-  return (
-    <motion.div variants={fadeUp}>
-      <Card>
-        <p className="text-xs text-text-muted mb-1">{label}</p>
-        <p className="text-xl font-semibold text-text-primary tracking-tight">{value}</p>
-        {sub && (
-          <p className={`text-xs mt-0.5 ${
-            trend === 'up' ? 'text-status-success' :
-            trend === 'down' ? 'text-status-danger' : 'text-text-muted'
-          }`}>{sub}</p>
-        )}
-      </Card>
-    </motion.div>
-  )
-}
-
 export function DashboardPage() {
   const data = useDashboardData()
   const {
     profile, bills, investments, goals,
     incomeEntries, baseSalary, extraIncome, totalIncome,
-    totalExpenses, totalPaid, remaining,
+    totalExpenses, remaining,
     dueSoon, overdue, installments, totalInvested,
   } = data
 
   const { theme, toggleTheme } = useAppStore()
-  const insights = generateInsights(profile, bills, investments, goals)
+
+  // Fix: pass totalIncome so insights use salary + extras
+  const insights = generateInsights(profile, bills, investments, goals, totalIncome)
+  const tip = getDailyTip()
 
   const [incomeOpen, setIncomeOpen] = useState(false)
   const [editIncome, setEditIncome] = useState<IncomeEntry | null>(null)
-  const [deleteIncomTarget, setDeleteIncomeTarget] = useState<IncomeEntry | null>(null)
+  const [deleteIncomeTarget, setDeleteIncomeTarget] = useState<IncomeEntry | null>(null)
+  const [editSalaryOpen, setEditSalaryOpen] = useState(false)
+  const [salaryInput, setSalaryInput] = useState('')
+  const [savingSalary, setSavingSalary] = useState(false)
 
   const pctExpenses = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0
   const mainGoal = goals[0]
+
+  async function handleSaveSalary() {
+    const val = parseNumber(salaryInput)
+    if (!val || val <= 0) return
+    setSavingSalary(true)
+    await updateMonthlyIncome(val)
+    setSavingSalary(false)
+    setEditSalaryOpen(false)
+  }
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-2xl mx-auto lg:px-6 lg:pt-8">
@@ -94,10 +93,16 @@ export function DashboardPage() {
             <p className="text-3xl font-bold text-white tracking-tight">
               {formatCurrency(remaining)}
             </p>
-            <div className="mt-3 flex items-center gap-4 text-xs text-white/70">
+            <div className="mt-3 flex items-center gap-3 text-xs text-white/70 flex-wrap">
               <span>Receita: {formatCurrency(totalIncome)}</span>
               <span>·</span>
               <span>Despesas: {formatCurrency(totalExpenses)}</span>
+              {totalInvested > 0 && (
+                <>
+                  <span>·</span>
+                  <span>Investido: {formatCurrency(totalInvested)}</span>
+                </>
+              )}
             </div>
             {totalIncome > 0 && (
               <div className="mt-3">
@@ -118,6 +123,32 @@ export function DashboardPage() {
           </Card>
         </motion.div>
 
+        {/* Budget ring chart */}
+        {(totalExpenses > 0 || totalInvested > 0) && totalIncome > 0 && (
+          <motion.div variants={fadeUp}>
+            <Card className="flex flex-col items-center py-5">
+              <p className="text-xs text-text-muted mb-4">Visão geral do orçamento</p>
+              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalInvested} />
+              <div className="mt-4 grid grid-cols-3 gap-3 w-full">
+                <div className="text-center">
+                  <p className="text-[10px] text-text-muted">Receita</p>
+                  <p className="text-xs font-semibold text-text-primary">{formatCurrency(totalIncome)}</p>
+                </div>
+                <div className="text-center border-x border-border-subtle">
+                  <p className="text-[10px] text-text-muted">Despesas</p>
+                  <p className="text-xs font-semibold text-status-danger">{formatCurrency(totalExpenses)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-text-muted">Livre</p>
+                  <p className="text-xs font-semibold text-status-success">
+                    {formatCurrency(Math.max(0, remaining))}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
         {/* ─── Entradas (income) card ─── */}
         <motion.div variants={fadeUp}>
           <Card padded={false}>
@@ -136,7 +167,7 @@ export function DashboardPage() {
               </button>
             </div>
 
-            {/* Salary row (base) */}
+            {/* Salary row — editable */}
             <div className="border-t border-border-subtle">
               <div className="flex items-center gap-3 px-4 py-2.5">
                 <div className="w-7 h-7 rounded-lg bg-status-success/12 flex items-center justify-center flex-shrink-0">
@@ -151,6 +182,12 @@ export function DashboardPage() {
                 <p className="text-sm font-semibold text-text-primary flex-shrink-0">
                   {formatCurrency(baseSalary)}
                 </p>
+                <button
+                  onClick={() => { setSalaryInput(String(baseSalary)); setEditSalaryOpen(true) }}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors flex-shrink-0"
+                >
+                  <Pencil size={11} />
+                </button>
               </div>
 
               {/* Extra income entries */}
@@ -183,7 +220,6 @@ export function DashboardPage() {
                 </div>
               ))}
 
-              {/* Total (only when there are extras) */}
               {extraIncome > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-t border-border-subtle bg-surface-50 rounded-b-2xl">
                   <p className="text-xs font-semibold text-text-secondary">Total</p>
@@ -192,34 +228,6 @@ export function DashboardPage() {
               )}
             </div>
           </Card>
-        </motion.div>
-
-        {/* Stats grid */}
-        <motion.div variants={fadeUp} className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Total de despesas"
-            value={formatCurrency(totalExpenses)}
-            sub={`${bills.length} conta${bills.length !== 1 ? 's' : ''}`}
-            trend={pctExpenses > 80 ? 'down' : 'neutral'}
-          />
-          <StatCard
-            label="Já pago"
-            value={formatCurrency(totalPaid)}
-            sub={`${bills.filter(b => b.status === 'paid').length} contas`}
-            trend="up"
-          />
-          <StatCard
-            label="Investimentos"
-            value={formatCurrency(totalInvested)}
-            sub={`${investments.length} ativo${investments.length !== 1 ? 's' : ''}`}
-            trend="up"
-          />
-          <StatCard
-            label="A pagar"
-            value={formatCurrency(totalExpenses - totalPaid > 0 ? totalExpenses - totalPaid : 0)}
-            sub={`${bills.filter(b => b.status !== 'paid').length} pendentes`}
-            trend={(totalExpenses - totalPaid) > totalIncome * 0.8 ? 'down' : 'neutral'}
-          />
         </motion.div>
 
         {/* Overdue alert */}
@@ -327,31 +335,37 @@ export function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Insights */}
-        {insights.length > 0 && (
-          <motion.div variants={fadeUp}>
-            <Card padded={false}>
-              <div className="px-4 pt-4 pb-2">
-                <CardTitle className="mb-3">Insights</CardTitle>
-                {insights.map((insight, i) => (
-                  <div
-                    key={insight.id}
-                    className={`py-2.5 text-sm text-text-secondary flex items-start gap-2 ${
-                      i < insights.length - 1 ? 'border-b border-border-subtle' : ''
-                    }`}
-                  >
-                    <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      insight.type === 'success' ? 'bg-status-success' :
-                      insight.type === 'warning' ? 'bg-status-warning' :
-                      insight.type === 'info' ? 'bg-accent-500' : 'bg-text-muted'
-                    }`} />
-                    {insight.text}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
-        )}
+        {/* Insights + tip */}
+        <motion.div variants={fadeUp}>
+          <Card padded={false}>
+            <div className="px-4 pt-4 pb-2">
+              <CardTitle className="mb-3">Insights</CardTitle>
+              {insights.length > 0 ? insights.map((insight, i) => (
+                <div
+                  key={insight.id}
+                  className={`py-2.5 text-sm text-text-secondary flex items-start gap-2 ${
+                    i < insights.length - 1 ? 'border-b border-border-subtle' : ''
+                  }`}
+                >
+                  <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    insight.type === 'success' ? 'bg-status-success' :
+                    insight.type === 'warning' ? 'bg-status-warning' :
+                    insight.type === 'info'    ? 'bg-accent-500'     : 'bg-text-muted'
+                  }`} />
+                  {insight.text}
+                </div>
+              )) : (
+                <p className="text-sm text-text-muted py-2">Adicione contas e receitas para ver seus insights.</p>
+              )}
+            </div>
+
+            {/* Daily tip */}
+            <div className="mx-4 mb-4 mt-2 flex items-start gap-2.5 p-3 rounded-xl bg-accent-500/8">
+              <Lightbulb size={14} className="text-accent-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-text-secondary leading-relaxed">{tip.text}</p>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Empty state */}
         {bills.length === 0 && investments.length === 0 && goals.length === 0 && (
@@ -372,18 +386,51 @@ export function DashboardPage() {
       </motion.div>
 
       {/* Modals */}
-      <Modal open={incomeOpen} onClose={() => setIncomeOpen(false)} title="Adicionar entrada" description="Registre uma receita extra deste mês.">
+      <Modal
+        open={incomeOpen}
+        onClose={() => setIncomeOpen(false)}
+        title="Adicionar entrada"
+        description="Registre uma receita extra deste mês."
+      >
         <IncomeForm onClose={() => setIncomeOpen(false)} />
       </Modal>
+
       <Modal open={!!editIncome} onClose={() => setEditIncome(null)} title="Editar entrada">
         {editIncome && <IncomeForm income={editIncome} onClose={() => setEditIncome(null)} />}
       </Modal>
+
+      <Modal
+        open={editSalaryOpen}
+        onClose={() => setEditSalaryOpen(false)}
+        title="Editar salário base"
+        description="Como sua renda é variável, ajuste o valor sempre que necessário."
+      >
+        <div className="space-y-4 pt-1">
+          <Input
+            label="Salário base este mês"
+            prefix="R$"
+            type="number"
+            inputMode="decimal"
+            value={salaryInput}
+            onChange={e => setSalaryInput(e.target.value)}
+            placeholder="0,00"
+          />
+          <Button
+            className="w-full"
+            onClick={handleSaveSalary}
+            loading={savingSalary}
+          >
+            Salvar
+          </Button>
+        </div>
+      </Modal>
+
       <ConfirmDialog
-        open={!!deleteIncomTarget}
+        open={!!deleteIncomeTarget}
         onClose={() => setDeleteIncomeTarget(null)}
-        onConfirm={async () => { await deleteIncome(deleteIncomTarget!.id!); setDeleteIncomeTarget(null) }}
+        onConfirm={async () => { await deleteIncome(deleteIncomeTarget!.id!); setDeleteIncomeTarget(null) }}
         title="Excluir entrada"
-        description={`Excluir "${deleteIncomTarget?.name}"?`}
+        description={`Excluir "${deleteIncomeTarget?.name}"?`}
         confirmLabel="Excluir"
       />
     </div>

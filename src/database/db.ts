@@ -28,6 +28,15 @@ class MonettaDB extends Dexie {
       paymentRecords: '++id, billId, month, year, paidAt',
       incomes:        '++id, month, year, category, isRecurring',
     })
+
+    this.version(3).stores({
+      userProfile:    '++id',
+      bills:          '++id, status, priority, dueDay, isRecurring, isInstallment, category, paidMonth, paidYear',
+      investments:    '++id, type, date, coinId',
+      goals:          '++id',
+      paymentRecords: '++id, billId, month, year, paidAt',
+      incomes:        '++id, month, year, category, isRecurring',
+    })
   }
 }
 

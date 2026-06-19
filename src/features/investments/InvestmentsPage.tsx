@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, TrendingUp, Pencil, Trash2 } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { InvestmentForm } from './InvestmentForm'
 import { useInvestments } from '../../hooks/useData'
+import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency } from '../../utils/format'
 import { INVESTMENT_TYPE_LABELS } from '../../types'
 import { deleteInvestment } from '../../database/queries'
@@ -20,26 +21,58 @@ const typeColors: Record<string, string> = {
   treasury:    '#3B82F6',
   cdb:         '#8B5CF6',
   stocks:      '#F59E0B',
-  crypto:      '#EF4444',
+  crypto:      '#F7931A',
   real_estate: '#14B8A6',
   other:       '#94A3B8',
 }
 
+function PnlBadge({ pnl, pct }: { pnl: number; pct: number }) {
+  const isPos = pnl >= 0
+  return (
+    <div className={`flex items-center gap-0.5 text-xs font-medium ${
+      isPos ? 'text-status-success' : 'text-status-danger'
+    }`}>
+      {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+      {isPos ? '+' : ''}{formatCurrency(pnl)} ({isPos ? '+' : ''}{pct.toFixed(1)}%)
+    </div>
+  )
+}
+
 export function InvestmentsPage() {
   const investments = useInvestments()
-  const [addOpen, setAddOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<Investment | null>(null)
+  const [addOpen, setAddOpen]         = useState(false)
+  const [editTarget, setEditTarget]   = useState<Investment | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Investment | null>(null)
 
-  const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
+  // Extract coinIds for all crypto investments
+  const coinIds = useMemo(
+    () => investments.filter(i => i.coinId).map(i => i.coinId!),
+    [investments],
+  )
+  const { prices, loading: pricesLoading, error: pricesError, lastUpdated } = useCryptoPrices(coinIds)
+
+  // Compute current value for each investment
+  function currentValue(inv: Investment): number {
+    if (inv.coinId && inv.quantity && prices[inv.coinId]) {
+      return inv.quantity * prices[inv.coinId]
+    }
+    return inv.amount
+  }
+
+  const totalPurchase = investments.reduce((s, i) => s + i.amount, 0)
+  const totalCurrent  = investments.reduce((s, i) => s + currentValue(i), 0)
+  const totalPnl      = totalCurrent - totalPurchase
+  const totalPnlPct   = totalPurchase > 0 ? (totalPnl / totalPurchase) * 100 : 0
 
   const byType = useMemo(() => {
     const map: Record<string, number> = {}
     for (const inv of investments) {
-      map[inv.type] = (map[inv.type] ?? 0) + inv.amount
+      map[inv.type] = (map[inv.type] ?? 0) + currentValue(inv)
     }
     return Object.entries(map).sort((a, b) => b[1] - a[1])
-  }, [investments])
+  }, [investments, prices])
+
+  const hasCrypto = investments.some(i => i.coinId)
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-2xl mx-auto lg:px-6 lg:pt-8">
@@ -53,20 +86,40 @@ export function InvestmentsPage() {
         }
       />
 
-      {/* Total */}
+      {/* Total card */}
       <Card className="mb-5 bg-gradient-to-br from-surface-0 to-surface-50">
-        <p className="text-xs text-text-muted mb-1">Total investido</p>
-        <p className="text-3xl font-bold text-text-primary tracking-tight">
-          {formatCurrency(totalInvested)}
-        </p>
-        {investments.length > 0 && (
-          <p className="text-xs text-text-muted mt-1.5">
-            em {investments.length} investimento{investments.length !== 1 ? 's' : ''}
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs text-text-muted mb-1">Patrimônio atual</p>
+            <p className="text-3xl font-bold text-text-primary tracking-tight">
+              {formatCurrency(totalCurrent)}
+            </p>
+            {totalPurchase !== totalCurrent && (
+              <p className="text-xs text-text-muted mt-1">
+                Investido: {formatCurrency(totalPurchase)}
+              </p>
+            )}
+          </div>
+          {totalPnl !== 0 && (
+            <div className="text-right">
+              <p className="text-xs text-text-muted mb-1">Resultado</p>
+              <PnlBadge pnl={totalPnl} pct={totalPnlPct} />
+            </div>
+          )}
+        </div>
+        {hasCrypto && (
+          <div className="flex items-center gap-1.5 mt-3 text-xs text-text-muted">
+            <RefreshCw size={11} className={pricesLoading ? 'animate-spin' : ''} />
+            {pricesError
+              ? 'Sem conexão — preços offline'
+              : lastUpdated
+              ? `Atualizado ${lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Carregando preços...'}
+          </div>
         )}
       </Card>
 
-      {/* Distribution by type */}
+      {/* Distribution */}
       {byType.length > 1 && (
         <Card className="mb-5">
           <p className="text-xs font-medium text-text-secondary mb-3">Distribuição</p>
@@ -83,7 +136,7 @@ export function InvestmentsPage() {
                   <div className="text-right">
                     <span className="text-xs font-medium text-text-primary">{formatCurrency(amount)}</span>
                     <span className="text-xs text-text-muted ml-1.5">
-                      {Math.round((amount / totalInvested) * 100)}%
+                      {Math.round((amount / totalCurrent) * 100)}%
                     </span>
                   </div>
                 </div>
@@ -92,7 +145,7 @@ export function InvestmentsPage() {
                     className="h-full rounded-full"
                     style={{ backgroundColor: typeColors[type] }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${(amount / totalInvested) * 100}%` }}
+                    animate={{ width: `${(amount / totalCurrent) * 100}%` }}
                     transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   />
                 </div>
@@ -118,57 +171,88 @@ export function InvestmentsPage() {
               }
             />
           ) : (
-            investments.map(inv => (
-              <motion.div
-                key={inv.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-3 px-4 py-3.5 border-b border-border-subtle last:border-0"
-              >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${typeColors[inv.type]}18` }}
+            investments.map(inv => {
+              const cur  = currentValue(inv)
+              const pnl  = cur - inv.amount
+              const pct  = inv.amount > 0 ? (pnl / inv.amount) * 100 : 0
+              const hasPnl = inv.coinId && inv.quantity && prices[inv.coinId]
+
+              return (
+                <motion.div
+                  key={inv.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="flex items-center gap-3 px-4 py-3.5 border-b border-border-subtle last:border-0"
                 >
-                  <TrendingUp size={16} style={{ color: typeColors[inv.type] }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">{inv.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-text-muted">
-                      {INVESTMENT_TYPE_LABELS[inv.type]}
-                    </span>
-                    {inv.platform && (
-                      <>
-                        <span className="text-text-muted">·</span>
-                        <span className="text-xs text-text-muted">{inv.platform}</span>
-                      </>
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${typeColors[inv.type]}18` }}
+                  >
+                    {inv.coinSymbol ? (
+                      <span className="text-[10px] font-bold" style={{ color: typeColors[inv.type] }}>
+                        {inv.coinSymbol.slice(0, 3)}
+                      </span>
+                    ) : (
+                      <TrendingUp size={16} style={{ color: typeColors[inv.type] }} />
                     )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-text-primary">{formatCurrency(inv.amount)}</p>
-                    <p className="text-xs text-text-muted">{formatDate(inv.date)}</p>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{inv.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-xs text-text-muted">
+                        {INVESTMENT_TYPE_LABELS[inv.type]}
+                      </span>
+                      {inv.platform && (
+                        <>
+                          <span className="text-text-muted">·</span>
+                          <span className="text-xs text-text-muted">{inv.platform}</span>
+                        </>
+                      )}
+                      {inv.quantity && (
+                        <>
+                          <span className="text-text-muted">·</span>
+                          <span className="text-xs text-text-muted">{inv.quantity} un</span>
+                        </>
+                      )}
+                    </div>
+                    {/* P&L row for crypto */}
+                    {hasPnl && (
+                      <div className="mt-0.5">
+                        <PnlBadge pnl={pnl} pct={pct} />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    <button
-                      onClick={() => setEditTarget(inv)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(inv)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-status-danger/8 hover:text-status-danger transition-colors"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-text-primary">{formatCurrency(cur)}</p>
+                      {hasPnl ? (
+                        <p className="text-xs text-text-muted">pago: {formatCurrency(inv.amount)}</p>
+                      ) : (
+                        <p className="text-xs text-text-muted">{formatDate(inv.date)}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        onClick={() => setEditTarget(inv)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(inv)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-status-danger/8 hover:text-status-danger transition-colors"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              )
+            })
           )}
         </AnimatePresence>
       </Card>

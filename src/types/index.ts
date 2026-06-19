@@ -42,6 +42,8 @@ export interface Bill {
   notes?: string
   status: BillStatus
   paidAt?: Date
+  paidMonth?: number
+  paidYear?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -52,6 +54,9 @@ export interface Investment {
   type: InvestmentType
   platform: string
   amount: number
+  quantity?: number
+  coinId?: string
+  coinSymbol?: string
   date: Date
   notes?: string
   createdAt: Date

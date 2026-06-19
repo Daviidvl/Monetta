@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingPage } from './features/onboarding/OnboardingPage'
 import { useAppStore } from './store/useAppStore'
+import { resetMonthlyBills } from './database/queries'
 
 const DashboardPage   = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const BillsPage       = lazy(() => import('./features/bills/BillsPage').then(m => ({ default: m.BillsPage })))
@@ -26,12 +27,29 @@ function ThemeSync() {
   return null
 }
 
+function MonthlyResetGuard() {
+  const { lastResetKey, setLastResetKey, hasOnboarded } = useAppStore()
+
+  useEffect(() => {
+    if (!hasOnboarded) return
+    const now = new Date()
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    if (lastResetKey !== currentKey) {
+      resetMonthlyBills(now.getMonth() + 1, now.getFullYear())
+        .then(() => setLastResetKey(currentKey))
+    }
+  }, [hasOnboarded])
+
+  return null
+}
+
 export default function App() {
   const hasOnboarded = useAppStore(s => s.hasOnboarded)
 
   return (
     <HashRouter>
       <ThemeSync />
+      <MonthlyResetGuard />
       {!hasOnboarded ? (
         <Routes>
           <Route path="*" element={<OnboardingPage />} />
@@ -39,46 +57,11 @@ export default function App() {
       ) : (
         <Routes>
           <Route element={<AppShell />}>
-            <Route
-              index
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DashboardPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="contas"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <BillsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="calendario"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <CalendarPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="investimentos"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <InvestmentsPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="metas"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <GoalsPage />
-                </Suspense>
-              }
-            />
+            <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
+            <Route path="contas" element={<Suspense fallback={<PageLoader />}><BillsPage /></Suspense>} />
+            <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
+            <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
+            <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

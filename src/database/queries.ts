@@ -1,5 +1,5 @@
 import { db } from './db'
-import type { Bill, BillStatus, Goal, Investment, PaymentRecord, UserProfile } from '../types'
+import type { Bill, BillStatus, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile } from '../types'
 
 // ─── UserProfile ───────────────────────────────────────────
 export async function getProfile(): Promise<UserProfile | undefined> {
@@ -13,6 +13,13 @@ export async function saveProfile(profile: Omit<UserProfile, 'id'>): Promise<num
     return existing.id
   }
   return db.userProfile.add(profile)
+}
+
+export async function updateMonthlyIncome(amount: number): Promise<void> {
+  const existing = await getProfile()
+  if (existing?.id) {
+    await db.userProfile.update(existing.id, { monthlyIncome: amount, updatedAt: new Date() })
+  }
 }
 
 // ─── Bills ─────────────────────────────────────────────────
@@ -35,12 +42,121 @@ export async function deleteBill(id: number): Promise<void> {
 
 export async function markBillPaid(id: number): Promise<void> {
   const now = new Date()
-  await db.bills.update(id, { status: 'paid', paidAt: now, updatedAt: now })
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+  const bill = await db.bills.get(id)
+  if (!bill) return
+
+  const updates: Partial<Bill> = {
+    status: 'paid',
+    paidAt: now,
+    paidMonth: month,
+    paidYear: year,
+    updatedAt: now,
+  }
+
+  // Increment installment counter
+  if (bill.isInstallment && bill.installmentPaid !== undefined && bill.installmentTotal !== undefined) {
+    updates.installmentPaid = Math.min(bill.installmentPaid + 1, bill.installmentTotal)
+  }
+
+  await db.bills.update(id, updates)
+
+  // Create payment record
+  await db.paymentRecords.add({
+    billId: id,
+    amount: bill.amount,
+    paidAt: now,
+    month,
+    year,
+  })
 }
 
 export async function markBillPending(id: number): Promise<void> {
   const now = new Date()
-  await db.bills.update(id, { status: 'pending', paidAt: undefined, updatedAt: now })
+  const bill = await db.bills.get(id)
+  if (!bill) return
+
+  // Undo installment increment if it was paid this month
+  const updates: Partial<Bill> = {
+    status: 'pending',
+    paidAt: undefined,
+    paidMonth: undefined,
+    paidYear: undefined,
+    updatedAt: now,
+  }
+
+  if (bill.isInstallment && bill.installmentPaid && bill.installmentPaid > 0) {
+    updates.installmentPaid = bill.installmentPaid - 1
+  }
+
+  await db.bills.update(id, updates)
+
+  // Remove the payment record for this month
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+  const records = await db.paymentRecords.where({ billId: id, month, year }).toArray()
+  if (records.length > 0) {
+    await db.paymentRecords.delete(records[records.length - 1].id!)
+  }
+}
+
+// Reset recurring bills for a new month (call once per month)
+export async function resetMonthlyBills(currentMonth: number, currentYear: number): Promise<void> {
+  const bills = await db.bills.toArray()
+  const now = new Date()
+
+  for (const bill of bills) {
+    if (bill.status !== 'paid') continue
+
+    const isPaidThisMonth = bill.paidMonth === currentMonth && bill.paidYear === currentYear
+    if (isPaidThisMonth) continue
+
+    // Installment: fully paid → stays paid
+    if (bill.isInstallment) {
+      const paid = bill.installmentPaid ?? 0
+      const total = bill.installmentTotal ?? 1
+      if (paid >= total) continue // done, keep paid
+    }
+
+    // Non-recurring one-time bill → keep paid
+    if (!bill.isRecurring && !bill.isInstallment) continue
+
+    // Reset to pending
+    await db.bills.update(bill.id!, {
+      status: 'pending',
+      paidAt: undefined,
+      paidMonth: undefined,
+      paidYear: undefined,
+      updatedAt: now,
+    })
+  }
+}
+
+// Bill payment history grouped by month
+export interface BillHistoryEntry {
+  billId: number
+  billName: string
+  amount: number
+  paidAt: Date
+  month: number
+  year: number
+}
+
+export async function getBillHistory(): Promise<BillHistoryEntry[]> {
+  const records = await db.paymentRecords.orderBy('paidAt').reverse().toArray()
+  const billIds = [...new Set(records.map(r => r.billId))]
+  const billsRaw = await db.bills.bulkGet(billIds)
+  const billMap = new Map(billsRaw.filter(Boolean).map(b => [b!.id!, b!]))
+
+  return records.map(r => ({
+    billId: r.billId,
+    billName: billMap.get(r.billId)?.name ?? 'Conta removida',
+    amount: r.amount,
+    paidAt: r.paidAt,
+    month: r.month,
+    year: r.year,
+  }))
 }
 
 export async function updateOverdueBills(): Promise<void> {
@@ -52,7 +168,9 @@ export async function updateOverdueBills(): Promise<void> {
     .map(b => b.id!)
     .filter(Boolean)
   if (overdueIds.length > 0) {
-    await Promise.all(overdueIds.map(id => db.bills.update(id, { status: 'overdue' as BillStatus })))
+    await Promise.all(overdueIds.map(id =>
+      db.bills.update(id, { status: 'overdue' as BillStatus })
+    ))
   }
 }
 
@@ -108,11 +226,11 @@ export async function getAllIncomes() {
   return db.incomes.toArray()
 }
 
-export async function addIncome(income: Omit<import('../types').IncomeEntry, 'id'>) {
+export async function addIncome(income: Omit<IncomeEntry, 'id'>) {
   return db.incomes.add(income)
 }
 
-export async function updateIncome(id: number, changes: Partial<import('../types').IncomeEntry>) {
+export async function updateIncome(id: number, changes: Partial<IncomeEntry>) {
   await db.incomes.update(id, { ...changes, updatedAt: new Date() })
 }
 
@@ -136,12 +254,8 @@ export async function exportAllData() {
 export async function importAllData(data: Awaited<ReturnType<typeof exportAllData>>) {
   await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes], async () => {
     await Promise.all([
-      db.userProfile.clear(),
-      db.bills.clear(),
-      db.investments.clear(),
-      db.goals.clear(),
-      db.paymentRecords.clear(),
-      db.incomes.clear(),
+      db.userProfile.clear(), db.bills.clear(), db.investments.clear(),
+      db.goals.clear(), db.paymentRecords.clear(), db.incomes.clear(),
     ])
     await Promise.all([
       db.userProfile.bulkAdd(data.userProfile),

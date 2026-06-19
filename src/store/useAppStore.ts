@@ -7,11 +7,13 @@ interface AppState {
   hasOnboarded: boolean
   activeMonth: number
   activeYear: number
+  lastResetKey: string // "YYYY-MM" format
 
   setTheme: (theme: Theme) => void
   toggleTheme: () => void
   setHasOnboarded: (v: boolean) => void
   setActiveMonth: (month: number, year: number) => void
+  setLastResetKey: (key: string) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -21,6 +23,7 @@ export const useAppStore = create<AppState>()(
       hasOnboarded: false,
       activeMonth: new Date().getMonth() + 1,
       activeYear: new Date().getFullYear(),
+      lastResetKey: '',
 
       setTheme: (theme) => {
         set({ theme })
@@ -34,8 +37,8 @@ export const useAppStore = create<AppState>()(
       },
 
       setHasOnboarded: (v) => set({ hasOnboarded: v }),
-
       setActiveMonth: (month, year) => set({ activeMonth: month, activeYear: year }),
+      setLastResetKey: (key) => set({ lastResetKey: key }),
     }),
     {
       name: 'monetta-app',
