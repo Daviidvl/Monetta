@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BottomNav } from './BottomNav'
+import { FloatingNav } from './FloatingNav'
 import { Sidebar } from './Sidebar'
 import { BackupModal } from '../../features/settings/BackupModal'
 
@@ -25,7 +25,7 @@ export function AppShell() {
         <div className="h-20 lg:hidden" />
       </main>
 
-      <BottomNav />
+      <FloatingNav />
       <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
     </div>
   )

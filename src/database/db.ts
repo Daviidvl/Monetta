@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Bill, Goal, Investment, PaymentRecord, UserProfile } from '../types'
+import type { Bill, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile } from '../types'
 
 class MonettaDB extends Dexie {
   userProfile!: Table<UserProfile>
@@ -7,6 +7,7 @@ class MonettaDB extends Dexie {
   investments!: Table<Investment>
   goals!: Table<Goal>
   paymentRecords!: Table<PaymentRecord>
+  incomes!: Table<IncomeEntry>
 
   constructor() {
     super('MonettaDB')
@@ -17,6 +18,15 @@ class MonettaDB extends Dexie {
       investments:    '++id, type, date',
       goals:          '++id',
       paymentRecords: '++id, billId, month, year, paidAt',
+    })
+
+    this.version(2).stores({
+      userProfile:    '++id',
+      bills:          '++id, status, priority, dueDay, isRecurring, isInstallment, category',
+      investments:    '++id, type, date',
+      goals:          '++id',
+      paymentRecords: '++id, billId, month, year, paidAt',
+      incomes:        '++id, month, year, category, isRecurring',
     })
   }
 }

@@ -117,6 +117,38 @@ export const STATUS_LABELS: Record<BillStatus, string> = {
   overdue: 'Atrasado',
 }
 
+// ─── Income ──────────────────────────────────────────────────
+export type IncomeCategory = 'salary' | 'bonus' | 'freelance' | 'vacation' | 'other'
+
+export interface IncomeEntry {
+  id?: number
+  name: string
+  category: IncomeCategory
+  amount: number
+  month: number
+  year: number
+  isRecurring: boolean
+  notes?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {
+  salary:    'Salário',
+  bonus:     'Bônus / 13º',
+  freelance: 'Freela / Renda extra',
+  vacation:  'Férias',
+  other:     'Outros',
+}
+
+export const INCOME_CATEGORY_ICONS: Record<IncomeCategory, string> = {
+  salary:    '$',
+  bonus:     '+',
+  freelance: '✦',
+  vacation:  '☀',
+  other:     '·',
+}
+
 export const GOAL_COLORS = [
   '#635BFF',
   '#10B981',

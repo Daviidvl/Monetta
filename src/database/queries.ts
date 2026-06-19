@@ -99,26 +99,49 @@ export async function addPaymentRecord(record: Omit<PaymentRecord, 'id'>): Promi
   return db.paymentRecords.add(record)
 }
 
+// ─── Income Entries ─────────────────────────────────────────
+export async function getIncomes(month: number, year: number) {
+  return db.incomes.where({ month, year }).toArray()
+}
+
+export async function getAllIncomes() {
+  return db.incomes.toArray()
+}
+
+export async function addIncome(income: Omit<import('../types').IncomeEntry, 'id'>) {
+  return db.incomes.add(income)
+}
+
+export async function updateIncome(id: number, changes: Partial<import('../types').IncomeEntry>) {
+  await db.incomes.update(id, { ...changes, updatedAt: new Date() })
+}
+
+export async function deleteIncome(id: number) {
+  await db.incomes.delete(id)
+}
+
 // ─── Backup ─────────────────────────────────────────────────
 export async function exportAllData() {
-  const [userProfile, bills, investments, goals, paymentRecords] = await Promise.all([
+  const [userProfile, bills, investments, goals, paymentRecords, incomes] = await Promise.all([
     db.userProfile.toArray(),
     db.bills.toArray(),
     db.investments.toArray(),
     db.goals.toArray(),
     db.paymentRecords.toArray(),
+    db.incomes.toArray(),
   ])
-  return { userProfile, bills, investments, goals, paymentRecords, exportedAt: new Date().toISOString() }
+  return { userProfile, bills, investments, goals, paymentRecords, incomes, exportedAt: new Date().toISOString() }
 }
 
 export async function importAllData(data: Awaited<ReturnType<typeof exportAllData>>) {
-  await db.transaction('rw', db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, async () => {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes], async () => {
     await Promise.all([
       db.userProfile.clear(),
       db.bills.clear(),
       db.investments.clear(),
       db.goals.clear(),
       db.paymentRecords.clear(),
+      db.incomes.clear(),
     ])
     await Promise.all([
       db.userProfile.bulkAdd(data.userProfile),
@@ -126,6 +149,7 @@ export async function importAllData(data: Awaited<ReturnType<typeof exportAllDat
       db.investments.bulkAdd(data.investments),
       db.goals.bulkAdd(data.goals),
       db.paymentRecords.bulkAdd(data.paymentRecords),
+      data.incomes ? db.incomes.bulkAdd(data.incomes) : Promise.resolve(),
     ])
   })
 }

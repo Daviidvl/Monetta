@@ -1,0 +1,30 @@
+{
+  "name": "Monetta",
+  "short_name": "Monetta",
+  "description": "Organize sua vida financeira com clareza e elegância.",
+  "start_url": "/Monetta/",
+  "scope": "/Monetta/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#635BFF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/Monetta/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Monetta/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Monetta/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    }
+  ]
+}
