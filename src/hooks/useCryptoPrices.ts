@@ -1,24 +1,94 @@
-type PriceMap = Record<string, number>
+import { useState, useEffect } from 'react'
 
+type PriceMap = Record<string, number>
 interface CoinPrice { brl: number }
 
-// Fetch a single coin's current price
-export async function fetchCoinPrice(coinId: string): Promise<number | null> {
+// ─── Shared module-level cache ───────────────────────────────────────────────
+// All hooks and standalone fetches share the same cache so we never make
+// redundant API calls even when multiple components need the same coin.
+const CACHE_TTL = 45_000 // 45 s — well within CoinGecko's 30 req/min free tier
+
+const priceCache = new Map<string, { price: number; ts: number }>()
+const inFlight   = new Map<string, Promise<number | null>>()
+
+async function fetchWithRetry(url: string): Promise<Response | null> {
   try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl`,
-    )
-    if (!res.ok) return null
-    const data = (await res.json()) as Record<string, CoinPrice>
-    return data[coinId]?.brl ?? null
+    const res = await fetch(url)
+    if (res.status === 429) {
+      // Rate-limited — wait 2 s and try once more
+      await new Promise(r => setTimeout(r, 2_000))
+      const retry = await fetch(url)
+      return retry.ok ? retry : null
+    }
+    return res.ok ? res : null
   } catch {
     return null
   }
 }
 
-// Live prices hook — refreshes every 30 seconds
-import { useState, useEffect } from 'react'
+// Fetch one coin's price (deduplicates concurrent calls via inFlight map)
+export async function fetchCoinPrice(coinId: string): Promise<number | null> {
+  const cached = priceCache.get(coinId)
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.price
 
+  if (inFlight.has(coinId)) return inFlight.get(coinId)!
+
+  const promise = (async () => {
+    const res = await fetchWithRetry(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl`,
+    )
+    if (!res) return null
+    const data = (await res.json()) as Record<string, CoinPrice>
+    const price = data[coinId]?.brl ?? null
+    if (price !== null) priceCache.set(coinId, { price, ts: Date.now() })
+    return price
+  })().finally(() => inFlight.delete(coinId))
+
+  inFlight.set(coinId, promise)
+  return promise
+}
+
+// Fetch multiple coins in a single API call (batched)
+async function fetchMultiplePrices(coinIds: string[]): Promise<PriceMap> {
+  const now      = Date.now()
+  const toFetch  = coinIds.filter(id => {
+    const c = priceCache.get(id)
+    return !c || now - c.ts >= CACHE_TTL
+  })
+
+  if (toFetch.length > 0) {
+    // Deduplicate with an in-flight key for the batch
+    const batchKey = [...toFetch].sort().join(',')
+    if (!inFlight.has(batchKey)) {
+      const promise = (async () => {
+        const res = await fetchWithRetry(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${batchKey}&vs_currencies=brl`,
+        )
+        if (res) {
+          const data = (await res.json()) as Record<string, CoinPrice>
+          const ts2 = Date.now()
+          for (const [id, val] of Object.entries(data)) {
+            priceCache.set(id, { price: val.brl, ts: ts2 })
+          }
+        }
+        return null
+      })().finally(() => inFlight.delete(batchKey))
+      inFlight.set(batchKey, promise)
+      await promise
+    } else {
+      await inFlight.get(batchKey)
+    }
+  }
+
+  const result: PriceMap = {}
+  for (const id of coinIds) {
+    const c = priceCache.get(id)
+    if (c) result[id] = c.price
+  }
+  return result
+}
+
+// ─── React hook ──────────────────────────────────────────────────────────────
 export function useCryptoPrices(coinIds: string[]): {
   prices: PriceMap
   loading: boolean
@@ -30,7 +100,6 @@ export function useCryptoPrices(coinIds: string[]): {
   const [error, setError]             = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  // Stable, sorted key so the effect only re-runs when coin list actually changes
   const ids = [...new Set(coinIds.filter(Boolean))].sort().join(',')
 
   useEffect(() => {
@@ -42,23 +111,19 @@ export function useCryptoPrices(coinIds: string[]): {
 
     let cancelled = false
 
-    async function loadPrices() {
+    async function refresh() {
       if (cancelled) return
       setLoading(true)
       setError(false)
       try {
-        const res = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=brl`,
-        )
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = (await res.json()) as Record<string, CoinPrice>
+        const result = await fetchMultiplePrices(ids.split(','))
         if (cancelled) return
-        const result: PriceMap = {}
-        for (const [id, val] of Object.entries(data)) {
-          result[id] = val.brl
+        if (Object.keys(result).length === 0) {
+          setError(true)
+        } else {
+          setPrices(result)
+          setLastUpdated(new Date())
         }
-        setPrices(result)
-        setLastUpdated(new Date())
       } catch {
         if (!cancelled) setError(true)
       } finally {
@@ -66,8 +131,19 @@ export function useCryptoPrices(coinIds: string[]): {
       }
     }
 
-    loadPrices()
-    const timer = setInterval(loadPrices, 30_000)
+    // Serve from cache immediately, then refresh in background
+    const instant: PriceMap = {}
+    for (const id of ids.split(',')) {
+      const c = priceCache.get(id)
+      if (c) instant[id] = c.price
+    }
+    if (Object.keys(instant).length > 0) {
+      setPrices(instant)
+      setLastUpdated(new Date())
+    }
+
+    refresh()
+    const timer = setInterval(refresh, 45_000)
     return () => {
       cancelled = true
       clearInterval(timer)
@@ -77,7 +153,7 @@ export function useCryptoPrices(coinIds: string[]): {
   return { prices, loading, error, lastUpdated }
 }
 
-// Search coins by name
+// ─── Coin search ─────────────────────────────────────────────────────────────
 export async function searchCoins(
   query: string,
 ): Promise<{ id: string; name: string; symbol: string }[]> {
