@@ -153,6 +153,66 @@ export function useCryptoPrices(coinIds: string[]): {
   return { prices, loading, error, lastUpdated }
 }
 
+// ─── Historical price at a specific datetime ─────────────────────────────────
+export interface HistoricalPrice {
+  price: number
+  /** hourly = within last 90 days; daily = older data */
+  granularity: 'hourly' | 'daily'
+  resolvedAt: Date
+}
+
+export async function fetchHistoricalPrice(
+  coinId: string,
+  datetime: Date,
+): Promise<HistoricalPrice | null> {
+  const ts   = Math.floor(datetime.getTime() / 1000)
+  const from = ts - 3_600 // 1 h before
+  const to   = ts + 3_600 // 1 h after
+
+  try {
+    // Try market_chart/range — hourly granularity for data < 90 days old
+    const rangeRes = await fetchWithRetry(
+      `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart/range?vs_currency=brl&from=${from}&to=${to}`,
+    )
+    if (rangeRes) {
+      const data = (await rangeRes.json()) as { prices: [number, number][] }
+      if (data.prices && data.prices.length > 0) {
+        const targetMs = datetime.getTime()
+        let closest = data.prices[0]
+        for (const p of data.prices) {
+          if (Math.abs(p[0] - targetMs) < Math.abs(closest[0] - targetMs)) {
+            closest = p
+          }
+        }
+        return {
+          price: closest[1],
+          granularity: 'hourly',
+          resolvedAt: new Date(closest[0]),
+        }
+      }
+    }
+
+    // Fallback: daily history endpoint (works for any past date)
+    const dd   = String(datetime.getDate()).padStart(2, '0')
+    const mm   = String(datetime.getMonth() + 1).padStart(2, '0')
+    const yyyy = datetime.getFullYear()
+    const histRes = await fetchWithRetry(
+      `https://api.coingecko.com/api/v3/coins/${coinId}/history?date=${dd}-${mm}-${yyyy}&localization=false`,
+    )
+    if (histRes) {
+      const h = (await histRes.json()) as { market_data?: { current_price?: { brl?: number } } }
+      const price = h.market_data?.current_price?.brl
+      if (price) {
+        return { price, granularity: 'daily', resolvedAt: datetime }
+      }
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 // ─── Coin search ─────────────────────────────────────────────────────────────
 export async function searchCoins(
   query: string,
