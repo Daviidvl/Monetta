@@ -69,9 +69,3 @@ Monetta é um PWA — pode ser instalado como app no celular e funciona sem inte
 Visual inspirado em Linear, Stripe e Apple — sem poluição visual, hierarquia clara, dark mode, e animações sutis que tornam a experiência agradável de usar.
 
 ---
-
-<div align="center">
-
-Feito por [Davi Pereira](https://github.com/Daviidvl)
-
-</div>
