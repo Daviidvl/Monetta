@@ -114,7 +114,7 @@ export function DashboardPage() {
         {/* Main balance card */}
         <motion.div variants={fadeUp}>
           <Card className="bg-accent-500 border-0 shadow-lg shadow-accent-500/25 p-5">
-            <p className="text-xs text-white/70 mb-1">Saldo previsto do mês</p>
+            <p className="text-xs text-white/70 mb-1">Disponível este mês</p>
             <p className="text-3xl font-bold text-white tracking-tight">
               {formatCurrency(remaining)}
             </p>
@@ -123,7 +123,7 @@ export function DashboardPage() {
               <span>Receita: {formatCurrency(totalIncome)}</span>
               <span>·</span>
               <span>Despesas: {formatCurrency(totalExpenses)}</span>
-              {totalCurrentInvested > 0 && (
+              {totalInvested > 0 && (
                 <>
                   <span>·</span>
                   <span className="flex items-center gap-1">
@@ -189,11 +189,11 @@ export function DashboardPage() {
         )}
 
         {/* Budget ring */}
-        {(totalExpenses > 0 || totalCurrentInvested > 0) && totalIncome > 0 && (
+        {(totalExpenses > 0 || totalInvested > 0) && totalIncome > 0 && (
           <motion.div variants={fadeUp}>
             <Card className="flex flex-col items-center py-5">
               <p className="text-xs text-text-muted mb-4">Visão geral do orçamento</p>
-              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalCurrentInvested} />
+              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalInvested} />
               <div className="mt-4 grid grid-cols-3 gap-3 w-full">
                 <div className="text-center">
                   <p className="text-[10px] text-text-muted">Receita</p>

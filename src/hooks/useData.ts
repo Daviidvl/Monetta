@@ -47,7 +47,8 @@ export function useDashboardData() {
 
   const totalExpenses = bills.reduce((s, b) => s + b.amount, 0)
   const totalPaid = paidBills.reduce((s, b) => s + b.amount, 0)
-  const remaining = totalIncome - totalExpenses
+  const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
+  const remaining = totalIncome - totalExpenses - totalInvested
 
   const dueSoon = pendingBills
     .filter(b => { const diff = b.dueDay - currentDay; return diff >= 0 && diff <= 7 })
@@ -55,7 +56,6 @@ export function useDashboardData() {
 
   const overdue = pendingBills.filter(b => b.dueDay < currentDay)
   const installments = bills.filter(b => b.isInstallment)
-  const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
 
   return {
     profile,
