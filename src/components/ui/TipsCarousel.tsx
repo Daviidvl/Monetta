@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 export interface TipCard {
   id: string
@@ -9,58 +9,90 @@ export interface TipCard {
   text: string
 }
 
+const AUTO_INTERVAL = 5000
+const PAUSE_AFTER_INTERACTION = 10000
+
 export function TipsCarousel({ tips }: { tips: TipCard[] }) {
-  const [active, setActive] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const [active, setActive]   = useState(0)
+  const timerRef              = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pauseTimeoutRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isPausedRef           = useRef(false)
 
-  function scrollToCard(idx: number) {
-    const el = scrollRef.current
-    if (!el) return
-    const child = el.children[idx] as HTMLElement | undefined
-    child?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
-    setActive(idx)
+  // Touch swipe tracking
+  const touchStartX = useRef(0)
+
+  const goTo = useCallback((idx: number) => {
+    setActive((idx + tips.length) % tips.length)
+  }, [tips.length])
+
+  const pause = useCallback(() => {
+    isPausedRef.current = true
+    if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current)
+    pauseTimeoutRef.current = setTimeout(() => {
+      isPausedRef.current = false
+    }, PAUSE_AFTER_INTERACTION)
+  }, [])
+
+  // Auto-scroll
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      if (!isPausedRef.current) {
+        setActive(prev => (prev + 1) % tips.length)
+      }
+    }, AUTO_INTERVAL)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current)
+    }
+  }, [tips.length])
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    pause()
   }
 
-  function onScroll() {
-    const el = scrollRef.current
-    if (!el || tips.length === 0) return
-    const cardWidth = (el.scrollWidth - 32) / tips.length
-    const idx = Math.min(Math.round(el.scrollLeft / cardWidth), tips.length - 1)
-    setActive(idx)
+  function onTouchEnd(e: React.TouchEvent) {
+    const delta = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(delta) > 40) {
+      goTo(active + (delta > 0 ? 1 : -1))
+    }
   }
+
+  if (tips.length === 0) return null
 
   return (
-    <div>
-      <div
-        ref={scrollRef}
-        onScroll={onScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory gap-3"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {tips.map(tip => (
-          <div
-            key={tip.id}
-            className={`flex-shrink-0 w-[calc(100%-2rem)] snap-start rounded-2xl p-4 ${tip.bgClass}`}
-          >
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className={tip.labelColor}>{tip.icon}</span>
-              <span className={`text-[10px] font-semibold uppercase tracking-wide ${tip.labelColor}`}>
-                {tip.label}
-              </span>
+    <div
+      className="select-none"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Clip container — hides adjacent cards */}
+      <div className="overflow-hidden rounded-2xl">
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{ transform: `translateX(-${active * 100}%)` }}
+        >
+          {tips.map(tip => (
+            <div key={tip.id} className={`flex-shrink-0 w-full p-4 ${tip.bgClass}`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className={tip.labelColor}>{tip.icon}</span>
+                <span className={`text-[10px] font-semibold uppercase tracking-wide ${tip.labelColor}`}>
+                  {tip.label}
+                </span>
+              </div>
+              <p className="text-sm text-text-secondary leading-relaxed">{tip.text}</p>
             </div>
-            <p className="text-sm text-text-secondary leading-relaxed">{tip.text}</p>
-          </div>
-        ))}
-        {/* trailing spacer so last card can snap to start */}
-        <div className="flex-shrink-0 w-6" aria-hidden />
+          ))}
+        </div>
       </div>
 
+      {/* Dot indicators */}
       <div className="flex justify-center gap-1.5 mt-3">
         {tips.map((_, i) => (
           <button
             key={i}
-            onClick={() => scrollToCard(i)}
-            className={`h-1.5 rounded-full transition-all duration-200 ${
+            onClick={() => { goTo(i); pause() }}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
               i === active ? 'w-5 bg-accent-500' : 'w-1.5 bg-border-subtle'
             }`}
           />
