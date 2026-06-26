@@ -22,6 +22,7 @@ import { generateInsights, getDailyTip } from '../../utils/insights'
 import { useAppStore } from '../../store/useAppStore'
 import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, type IncomeEntry } from '../../types'
 import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
+import { calcSavingPlan, formatMonths } from '../../utils/goals'
 
 const stagger = {
   hidden: {},
@@ -77,8 +78,9 @@ export function DashboardPage() {
   const mainGoal    = goals[0]
 
   // Suggestion: show when there's meaningful free cash
-  const suggestionAmount = remaining > 0 ? Math.round(remaining * 0.2) : 0
-  const showSuggestion   = remaining >= 150 && (investments.length > 0 || mainGoal)
+  const showSuggestion = remaining >= 150 && (investments.length > 0 || mainGoal)
+  const mainGoalPlan   = mainGoal ? calcSavingPlan(mainGoal, remaining) : null
+  const suggestionAmount = mainGoalPlan?.monthlyAmount ?? Math.round(remaining * 0.2)
 
   async function handleSaveSalary() {
     const val = parseNumber(salaryInput)
@@ -171,12 +173,23 @@ export function DashboardPage() {
                 <p className="text-sm font-semibold text-text-primary">
                   {formatCurrency(remaining)} livres este mês
                 </p>
-                <p className="text-sm text-text-secondary mt-0.5">
-                  Considere guardar {formatCurrency(suggestionAmount)} (20%)
-                  {mainGoal
-                    ? ` para sua meta "${mainGoal.name}"`
-                    : ' em investimentos'}.
-                </p>
+                {mainGoalPlan ? (
+                  <p className="text-sm text-text-secondary mt-0.5">
+                    Guardando{' '}
+                    <span className="font-medium text-text-primary">{formatCurrency(mainGoalPlan.monthlyAmount)}/mês</span>
+                    {mainGoalPlan.pctOfFree > 0 && (
+                      <span className="text-text-muted"> ({mainGoalPlan.pctOfFree}% do disponível)</span>
+                    )}
+                    {' '}você atinge{' '}
+                    <span className="font-medium text-text-primary">"{mainGoal!.name}"</span>
+                    {' '}em{' '}
+                    <span className="font-medium text-text-primary">{formatMonths(mainGoalPlan.monthsToReach)}</span>.
+                  </p>
+                ) : (
+                  <p className="text-sm text-text-secondary mt-0.5">
+                    Considere guardar {formatCurrency(suggestionAmount)} (20%) em investimentos.
+                  </p>
+                )}
               </div>
               <Link
                 to={mainGoal ? '/metas' : '/investimentos'}
@@ -388,6 +401,17 @@ export function DashboardPage() {
                   <span>{formatCurrency(mainGoal.currentAmount)}</span>
                   <span>{formatCurrency(mainGoal.targetAmount)}</span>
                 </div>
+                {mainGoalPlan && (
+                  <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-accent-500/6">
+                    <Lightbulb size={12} className="text-accent-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-text-secondary">
+                      Guarde{' '}
+                      <span className="font-semibold text-text-primary">{formatCurrency(mainGoalPlan.monthlyAmount)}/mês</span>
+                      {' '}e chegue lá em{' '}
+                      <span className="font-semibold text-text-primary">{formatMonths(mainGoalPlan.monthsToReach)}</span>.
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           </motion.div>
