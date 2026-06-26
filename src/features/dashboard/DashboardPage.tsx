@@ -18,7 +18,9 @@ import { useDashboardData } from '../../hooks/useData'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency, parseNumber } from '../../utils/format'
 import { dueDayLabel } from '../../utils/date'
-import { generateInsights, getDailyTip } from '../../utils/insights'
+import { generateInsights } from '../../utils/insights'
+import { TipsCarousel } from '../../components/ui/TipsCarousel'
+import { useMarketTips } from '../../hooks/useMarketTips'
 import { useAppStore } from '../../store/useAppStore'
 import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, type IncomeEntry } from '../../types'
 import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
@@ -64,8 +66,8 @@ export function DashboardPage() {
 
   const { theme, toggleTheme } = useAppStore()
 
-  const insights = generateInsights(profile, bills, investments, goals, totalIncome)
-  const tip      = getDailyTip()
+  const insights   = generateInsights(profile, bills, investments, goals, totalIncome)
+  const marketTips = useMarketTips()
 
   const [incomeOpen, setIncomeOpen]               = useState(false)
   const [editIncome, setEditIncome]               = useState<IncomeEntry | null>(null)
@@ -417,10 +419,10 @@ export function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Insights + tip */}
+        {/* Insights */}
         <motion.div variants={fadeUp}>
           <Card padded={false}>
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-4 pt-4 pb-4">
               <CardTitle className="mb-3">Insights</CardTitle>
               {insights.length > 0 ? insights.map((insight, i) => (
                 <div
@@ -440,11 +442,15 @@ export function DashboardPage() {
                 <p className="text-sm text-text-muted py-2">Adicione contas e receitas para ver seus insights.</p>
               )}
             </div>
-            <div className="mx-4 mb-4 mt-2 flex items-start gap-2.5 p-3 rounded-xl bg-accent-500/8">
-              <Lightbulb size={14} className="text-accent-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-text-secondary leading-relaxed">{tip.text}</p>
-            </div>
           </Card>
+        </motion.div>
+
+        {/* Tips carousel — market + monthly tip + planning reminder */}
+        <motion.div variants={fadeUp}>
+          <div className="px-0">
+            <p className="text-xs text-text-muted mb-3 font-medium">Dicas &amp; mercado</p>
+            <TipsCarousel tips={marketTips} />
+          </div>
         </motion.div>
 
         {/* Empty state */}
