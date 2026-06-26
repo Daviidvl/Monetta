@@ -238,6 +238,20 @@ export async function deleteIncome(id: number) {
   await db.incomes.delete(id)
 }
 
+// ─── Clear ───────────────────────────────────────────────────
+export async function clearAllData(): Promise<void> {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes], async () => {
+    await Promise.all([
+      db.userProfile.clear(),
+      db.bills.clear(),
+      db.investments.clear(),
+      db.goals.clear(),
+      db.paymentRecords.clear(),
+      db.incomes.clear(),
+    ])
+  })
+}
+
 // ─── Backup ─────────────────────────────────────────────────
 export async function exportAllData() {
   const [userProfile, bills, investments, goals, paymentRecords, incomes] = await Promise.all([
