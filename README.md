@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="public/icon-192.svg" width="96" alt="Monetta" />
+
 # Monetta
 
 **Controle financeiro pessoal — offline, bonito e sem complicação.**
