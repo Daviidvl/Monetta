@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
   Receipt,
+  Wallet,
   TrendingUp,
   Target,
-  CalendarDays,
   Moon,
   Sun,
   Download,
@@ -13,11 +13,11 @@ import { cn } from '../../utils/cn'
 import { useAppStore } from '../../store/useAppStore'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/contas', label: 'Contas', icon: Receipt },
-  { to: '/calendario', label: 'Calendário', icon: CalendarDays },
+  { to: '/',              label: 'Dashboard',    icon: LayoutDashboard, exact: true },
+  { to: '/contas',        label: 'Contas',       icon: Receipt },
+  { to: '/gastos',        label: 'Gastos',       icon: Wallet },
   { to: '/investimentos', label: 'Investimentos', icon: TrendingUp },
-  { to: '/metas', label: 'Metas', icon: Target },
+  { to: '/metas',         label: 'Metas',        icon: Target },
 ]
 
 interface SidebarProps {
