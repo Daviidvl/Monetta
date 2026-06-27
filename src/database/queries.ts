@@ -1,5 +1,5 @@
 import { db } from './db'
-import type { Bill, BillStatus, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile } from '../types'
+import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile } from '../types'
 
 // ─── UserProfile ───────────────────────────────────────────
 export async function getProfile(): Promise<UserProfile | undefined> {
@@ -238,9 +238,22 @@ export async function deleteIncome(id: number) {
   await db.incomes.delete(id)
 }
 
+// ─── Debit Expenses ──────────────────────────────────────────
+export async function addDebitExpense(expense: Omit<DebitExpense, 'id'>): Promise<number> {
+  return db.debitExpenses.add(expense)
+}
+
+export async function deleteDebitExpense(id: number): Promise<void> {
+  await db.debitExpenses.delete(id)
+}
+
+export async function updateDebitExpense(id: number, changes: Partial<DebitExpense>): Promise<void> {
+  await db.debitExpenses.update(id, changes)
+}
+
 // ─── Clear ───────────────────────────────────────────────────
 export async function clearAllData(): Promise<void> {
-  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes], async () => {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses], async () => {
     await Promise.all([
       db.userProfile.clear(),
       db.bills.clear(),
@@ -248,28 +261,30 @@ export async function clearAllData(): Promise<void> {
       db.goals.clear(),
       db.paymentRecords.clear(),
       db.incomes.clear(),
+      db.debitExpenses.clear(),
     ])
   })
 }
 
 // ─── Backup ─────────────────────────────────────────────────
 export async function exportAllData() {
-  const [userProfile, bills, investments, goals, paymentRecords, incomes] = await Promise.all([
+  const [userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses] = await Promise.all([
     db.userProfile.toArray(),
     db.bills.toArray(),
     db.investments.toArray(),
     db.goals.toArray(),
     db.paymentRecords.toArray(),
     db.incomes.toArray(),
+    db.debitExpenses.toArray(),
   ])
-  return { userProfile, bills, investments, goals, paymentRecords, incomes, exportedAt: new Date().toISOString() }
+  return { userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses, exportedAt: new Date().toISOString() }
 }
 
 export async function importAllData(data: Awaited<ReturnType<typeof exportAllData>>) {
-  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes], async () => {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses], async () => {
     await Promise.all([
       db.userProfile.clear(), db.bills.clear(), db.investments.clear(),
-      db.goals.clear(), db.paymentRecords.clear(), db.incomes.clear(),
+      db.goals.clear(), db.paymentRecords.clear(), db.incomes.clear(), db.debitExpenses.clear(),
     ])
     await Promise.all([
       db.userProfile.bulkAdd(data.userProfile),
@@ -278,6 +293,7 @@ export async function importAllData(data: Awaited<ReturnType<typeof exportAllDat
       db.goals.bulkAdd(data.goals),
       db.paymentRecords.bulkAdd(data.paymentRecords),
       data.incomes ? db.incomes.bulkAdd(data.incomes) : Promise.resolve(),
+      data.debitExpenses ? db.debitExpenses.bulkAdd(data.debitExpenses) : Promise.resolve(),
     ])
   })
 }

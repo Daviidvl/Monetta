@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Receipt, TrendingUp, Target, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, Receipt, Wallet, TrendingUp, Target } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 const navItems = [
-  { to: '/', label: 'Início', icon: LayoutDashboard, exact: true },
-  { to: '/contas', label: 'Contas', icon: Receipt },
-  { to: '/calendario', label: 'Calendário', icon: CalendarDays },
+  { to: '/',              label: 'Início',       icon: LayoutDashboard, exact: true },
+  { to: '/contas',        label: 'Contas',       icon: Receipt },
+  { to: '/gastos',        label: 'Gastos',       icon: Wallet },
   { to: '/investimentos', label: 'Investimentos', icon: TrendingUp },
-  { to: '/metas', label: 'Metas', icon: Target },
+  { to: '/metas',         label: 'Metas',        icon: Target },
 ]
 
 export function BottomNav() {

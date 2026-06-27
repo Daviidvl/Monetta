@@ -1,14 +1,14 @@
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutDashboard, Receipt, CalendarDays, TrendingUp, Target } from 'lucide-react'
+import { LayoutDashboard, Receipt, Wallet, TrendingUp, Target } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 const navItems = [
-  { to: '/',             label: 'Início',       icon: LayoutDashboard, exact: true },
-  { to: '/contas',       label: 'Contas',       icon: Receipt },
-  { to: '/calendario',   label: 'Calendário',   icon: CalendarDays },
-  { to: '/investimentos',label: 'Investimentos',icon: TrendingUp },
-  { to: '/metas',        label: 'Metas',        icon: Target },
+  { to: '/',              label: 'Início',        icon: LayoutDashboard, exact: true },
+  { to: '/contas',        label: 'Contas',        icon: Receipt },
+  { to: '/gastos',        label: 'Gastos',        icon: Wallet },
+  { to: '/investimentos', label: 'Investimentos', icon: TrendingUp },
+  { to: '/metas',         label: 'Metas',         icon: Target },
 ]
 
 export function FloatingNav() {
@@ -19,12 +19,7 @@ export function FloatingNav() {
     >
       <div className="pointer-events-auto flex items-center gap-0.5 bg-surface-0/95 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-elevated px-1.5 py-1.5">
         {navItems.map(({ to, label, icon: Icon, exact }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={exact}
-            className="outline-none"
-          >
+          <NavLink key={to} to={to} end={exact} className="outline-none">
             {({ isActive }) => (
               <motion.div
                 whileTap={{ scale: 0.88 }}
@@ -33,11 +28,9 @@ export function FloatingNav() {
                   'relative flex flex-col items-center justify-center rounded-xl cursor-pointer select-none',
                   'transition-colors duration-150',
                   isActive ? 'text-accent-500' : 'text-text-muted hover:text-text-secondary',
-                  // Width expands when active to show label
                   isActive ? 'px-3 py-2' : 'w-11 h-11',
                 )}
               >
-                {/* Sliding background */}
                 {isActive && (
                   <motion.div
                     layoutId="floating-nav-bg"
@@ -45,12 +38,8 @@ export function FloatingNav() {
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   />
                 )}
-
                 <div className="relative z-10 flex flex-col items-center gap-0.5">
-                  <Icon
-                    size={18}
-                    strokeWidth={isActive ? 2.2 : 1.6}
-                  />
+                  <Icon size={18} strokeWidth={isActive ? 2.2 : 1.6} />
                   <AnimatePresence>
                     {isActive && (
                       <motion.span

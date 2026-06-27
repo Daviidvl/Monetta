@@ -10,6 +10,7 @@ const BillsPage       = lazy(() => import('./features/bills/BillsPage').then(m =
 const CalendarPage    = lazy(() => import('./features/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })))
 const InvestmentsPage = lazy(() => import('./features/investments/InvestmentsPage').then(m => ({ default: m.InvestmentsPage })))
 const GoalsPage       = lazy(() => import('./features/goals/GoalsPage').then(m => ({ default: m.GoalsPage })))
+const ExpensesPage    = lazy(() => import('./features/expenses/ExpensesPage').then(m => ({ default: m.ExpensesPage })))
 
 function PageLoader() {
   return (
@@ -59,6 +60,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
             <Route path="contas" element={<Suspense fallback={<PageLoader />}><BillsPage /></Suspense>} />
+            <Route path="gastos" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />
             <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
             <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
             <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />

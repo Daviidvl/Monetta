@@ -25,53 +25,60 @@ export function useIncomes(month?: number, year?: number) {
   return useLiveQuery(() => db.incomes.where({ month: m, year: y }).toArray(), [m, y]) ?? []
 }
 
-export function useDashboardData() {
-  const profile = useProfile()
-  const bills = useBills()
-  const investments = useInvestments()
-  const goals = useGoals()
-
+export function useMonthlyDebitExpenses(month?: number, year?: number) {
   const now = new Date()
-  const currentDay = getDate(now)
+  const m = month ?? getMonth(now) + 1
+  const y = year ?? getYear(now)
+  return useLiveQuery(async () => {
+    const all = await db.debitExpenses.toArray()
+    return all
+      .filter(e => {
+        const d = new Date(e.date)
+        return d.getFullYear() === y && d.getMonth() + 1 === m
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [m, y]) ?? []
+}
+
+export function useDashboardData() {
+  const profile    = useProfile()
+  const bills      = useBills()
+  const investments = useInvestments()
+  const goals      = useGoals()
+
+  const now          = new Date()
+  const currentDay   = getDate(now)
   const currentMonth = getMonth(now) + 1
-  const currentYear = getYear(now)
+  const currentYear  = getYear(now)
 
   const incomeEntries = useIncomes(currentMonth, currentYear)
+  const debitExpenses = useMonthlyDebitExpenses(currentMonth, currentYear)
 
-  const baseSalary = profile?.monthlyIncome ?? 0
+  const baseSalary  = profile?.monthlyIncome ?? 0
   const extraIncome = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const totalIncome = baseSalary + extraIncome
 
   const pendingBills = bills.filter(b => b.status !== 'paid')
-  const paidBills = bills.filter(b => b.status === 'paid')
+  const paidBills    = bills.filter(b => b.status === 'paid')
 
-  const totalExpenses = bills.reduce((s, b) => s + b.amount, 0)
-  const totalPaid = paidBills.reduce((s, b) => s + b.amount, 0)
-  const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
-  const remaining = totalIncome - totalExpenses - totalInvested
+  const totalExpenses      = bills.reduce((s, b) => s + b.amount, 0)
+  const totalPaid          = paidBills.reduce((s, b) => s + b.amount, 0)
+  const totalInvested      = investments.reduce((s, i) => s + i.amount, 0)
+  const totalDebitExpenses = debitExpenses.reduce((s, e) => s + e.amount, 0)
+  const remaining          = totalIncome - totalExpenses - totalInvested - totalDebitExpenses
 
   const dueSoon = pendingBills
     .filter(b => { const diff = b.dueDay - currentDay; return diff >= 0 && diff <= 7 })
     .sort((a, b) => a.dueDay - b.dueDay)
 
-  const overdue = pendingBills.filter(b => b.dueDay < currentDay)
+  const overdue      = pendingBills.filter(b => b.dueDay < currentDay)
   const installments = bills.filter(b => b.isInstallment)
 
   return {
-    profile,
-    bills,
-    investments,
-    goals,
-    incomeEntries,
-    baseSalary,
-    extraIncome,
-    totalIncome,
-    totalExpenses,
-    totalPaid,
-    remaining,
-    dueSoon,
-    overdue,
-    installments,
-    totalInvested,
+    profile, bills, investments, goals,
+    incomeEntries, debitExpenses,
+    baseSalary, extraIncome, totalIncome,
+    totalExpenses, totalPaid, totalInvested, totalDebitExpenses,
+    remaining, dueSoon, overdue, installments,
   }
 }

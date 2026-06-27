@@ -154,6 +154,27 @@ export const INCOME_CATEGORY_ICONS: Record<IncomeCategory, string> = {
   other:     '·',
 }
 
+// ─── Debit Expenses ──────────────────────────────────────────
+export type ExpenseCategory = 'food' | 'transport' | 'health' | 'shopping' | 'entertainment' | 'other'
+
+export interface DebitExpense {
+  id?: number
+  description: string
+  amount: number
+  category: ExpenseCategory
+  date: Date
+  createdAt: Date
+}
+
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  food:          'Alimentação',
+  transport:     'Transporte',
+  health:        'Saúde',
+  shopping:      'Compras',
+  entertainment: 'Lazer',
+  other:         'Outros',
+}
+
 export const GOAL_COLORS = [
   '#635BFF',
   '#10B981',

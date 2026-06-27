@@ -41,7 +41,7 @@ export function DashboardPage() {
   const {
     profile, bills, investments, goals,
     incomeEntries, baseSalary, extraIncome, totalIncome,
-    totalExpenses, remaining,
+    totalExpenses, totalDebitExpenses, remaining,
     dueSoon, overdue, installments, totalInvested,
   } = data
 
@@ -126,7 +126,13 @@ export function DashboardPage() {
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/70">
               <span>Receita: {formatCurrency(totalIncome)}</span>
               <span>·</span>
-              <span>Despesas: {formatCurrency(totalExpenses)}</span>
+              <span>Contas: {formatCurrency(totalExpenses)}</span>
+              {totalDebitExpenses > 0 && (
+                <>
+                  <span>·</span>
+                  <span>Gastos: {formatCurrency(totalDebitExpenses)}</span>
+                </>
+              )}
               {totalInvested > 0 && (
                 <>
                   <span>·</span>
@@ -208,7 +214,7 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <Card className="flex flex-col items-center py-5">
               <p className="text-xs text-text-muted mb-4">Visão geral do orçamento</p>
-              <BudgetRing income={totalIncome} expenses={totalExpenses} invested={totalInvested} />
+              <BudgetRing income={totalIncome} expenses={totalExpenses + totalDebitExpenses} invested={totalInvested} />
               <div className="mt-4 grid grid-cols-3 gap-3 w-full">
                 <div className="text-center">
                   <p className="text-[10px] text-text-muted">Receita</p>
