@@ -18,6 +18,10 @@ export function useGoals() {
   return useLiveQuery(() => db.goals.toArray()) ?? []
 }
 
+export function useWithdrawals() {
+  return useLiveQuery(() => db.withdrawals.orderBy('date').reverse().toArray()) ?? []
+}
+
 export function useIncomes(month?: number, year?: number) {
   const now = new Date()
   const m = month ?? getMonth(now) + 1

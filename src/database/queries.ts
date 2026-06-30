@@ -1,5 +1,5 @@
 import { db } from './db'
-import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile } from '../types'
+import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
 
 // ─── UserProfile ───────────────────────────────────────────
 export async function getProfile(): Promise<UserProfile | undefined> {
@@ -189,6 +189,107 @@ export async function updateInvestment(id: number, changes: Partial<Investment>)
 
 export async function deleteInvestment(id: number): Promise<void> {
   await db.investments.delete(id)
+  await db.withdrawals.where('investmentId').equals(id).delete()
+}
+
+// ─── Withdrawals ────────────────────────────────────────────
+export async function getWithdrawals(): Promise<Withdrawal[]> {
+  return db.withdrawals.orderBy('date').reverse().toArray()
+}
+
+export async function getWithdrawalsForInvestment(investmentId: number): Promise<Withdrawal[]> {
+  return db.withdrawals.where('investmentId').equals(investmentId).reverse().sortBy('date')
+}
+
+interface AddWithdrawalInput {
+  investmentId: number
+  amount: number
+  quantity?: number
+  date: Date
+  notes?: string
+}
+
+// Withdraws money from an investment, shrinking its amount/quantity.
+// If the withdrawal exhausts the position, the investment is closed (deleted).
+export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> {
+  const investment = await db.investments.get(input.investmentId)
+  if (!investment) throw new Error('Investimento não encontrado')
+
+  const now = new Date()
+  const record: Omit<Withdrawal, 'id'> = {
+    investmentId:       input.investmentId,
+    investmentName:     investment.name,
+    investmentType:     investment.type,
+    investmentPlatform: investment.platform,
+    coinId:             investment.coinId,
+    coinSymbol:         investment.coinSymbol,
+    amount:             input.amount,
+    quantity:           input.quantity,
+    date:               input.date,
+    notes:              input.notes,
+    createdAt:          now,
+  }
+
+  const remainingAmount = Math.max(0, investment.amount - input.amount)
+  const remainingQuantity = investment.quantity !== undefined
+    ? Math.max(0, investment.quantity - (input.quantity ?? 0))
+    : undefined
+
+  const isFullWithdrawal =
+    remainingAmount <= 0.005 ||
+    (remainingQuantity !== undefined && remainingQuantity <= 1e-8)
+
+  let withdrawalId = 0
+  await db.transaction('rw', [db.investments, db.withdrawals], async () => {
+    withdrawalId = await db.withdrawals.add(record)
+    if (isFullWithdrawal) {
+      await db.investments.delete(input.investmentId)
+    } else {
+      await db.investments.update(input.investmentId, {
+        amount: remainingAmount,
+        quantity: remainingQuantity,
+        updatedAt: now,
+      })
+    }
+  })
+  return withdrawalId
+}
+
+// Reverses a withdrawal, restoring the amount/quantity to the investment
+// (re-creating it if it had been fully withdrawn).
+export async function deleteWithdrawal(id: number): Promise<void> {
+  const withdrawal = await db.withdrawals.get(id)
+  if (!withdrawal) return
+
+  await db.transaction('rw', [db.investments, db.withdrawals], async () => {
+    const investment = await db.investments.get(withdrawal.investmentId)
+    const now = new Date()
+
+    if (investment) {
+      await db.investments.update(withdrawal.investmentId, {
+        amount: investment.amount + withdrawal.amount,
+        quantity: investment.quantity !== undefined
+          ? investment.quantity + (withdrawal.quantity ?? 0)
+          : investment.quantity,
+        updatedAt: now,
+      })
+    } else {
+      await db.investments.add({
+        name:       withdrawal.investmentName,
+        type:       withdrawal.investmentType,
+        platform:   withdrawal.investmentPlatform,
+        amount:     withdrawal.amount,
+        quantity:   withdrawal.quantity,
+        coinId:     withdrawal.coinId,
+        coinSymbol: withdrawal.coinSymbol,
+        date:       withdrawal.date,
+        createdAt:  withdrawal.createdAt,
+        updatedAt:  now,
+      })
+    }
+
+    await db.withdrawals.delete(id)
+  })
 }
 
 // ─── Goals ─────────────────────────────────────────────────
@@ -253,7 +354,7 @@ export async function updateDebitExpense(id: number, changes: Partial<DebitExpen
 
 // ─── Clear ───────────────────────────────────────────────────
 export async function clearAllData(): Promise<void> {
-  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses], async () => {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses, db.withdrawals], async () => {
     await Promise.all([
       db.userProfile.clear(),
       db.bills.clear(),
@@ -262,13 +363,14 @@ export async function clearAllData(): Promise<void> {
       db.paymentRecords.clear(),
       db.incomes.clear(),
       db.debitExpenses.clear(),
+      db.withdrawals.clear(),
     ])
   })
 }
 
 // ─── Backup ─────────────────────────────────────────────────
 export async function exportAllData() {
-  const [userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses] = await Promise.all([
+  const [userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses, withdrawals] = await Promise.all([
     db.userProfile.toArray(),
     db.bills.toArray(),
     db.investments.toArray(),
@@ -276,15 +378,16 @@ export async function exportAllData() {
     db.paymentRecords.toArray(),
     db.incomes.toArray(),
     db.debitExpenses.toArray(),
+    db.withdrawals.toArray(),
   ])
-  return { userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses, exportedAt: new Date().toISOString() }
+  return { userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses, withdrawals, exportedAt: new Date().toISOString() }
 }
 
 export async function importAllData(data: Awaited<ReturnType<typeof exportAllData>>) {
-  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses], async () => {
+  await db.transaction('rw', [db.userProfile, db.bills, db.investments, db.goals, db.paymentRecords, db.incomes, db.debitExpenses, db.withdrawals], async () => {
     await Promise.all([
       db.userProfile.clear(), db.bills.clear(), db.investments.clear(),
-      db.goals.clear(), db.paymentRecords.clear(), db.incomes.clear(), db.debitExpenses.clear(),
+      db.goals.clear(), db.paymentRecords.clear(), db.incomes.clear(), db.debitExpenses.clear(), db.withdrawals.clear(),
     ])
     await Promise.all([
       db.userProfile.bulkAdd(data.userProfile),
@@ -294,6 +397,7 @@ export async function importAllData(data: Awaited<ReturnType<typeof exportAllDat
       db.paymentRecords.bulkAdd(data.paymentRecords),
       data.incomes ? db.incomes.bulkAdd(data.incomes) : Promise.resolve(),
       data.debitExpenses ? db.debitExpenses.bulkAdd(data.debitExpenses) : Promise.resolve(),
+      data.withdrawals ? db.withdrawals.bulkAdd(data.withdrawals) : Promise.resolve(),
     ])
   })
 }

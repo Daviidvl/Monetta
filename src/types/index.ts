@@ -63,6 +63,21 @@ export interface Investment {
   updatedAt: Date
 }
 
+export interface Withdrawal {
+  id?: number
+  investmentId: number
+  investmentName: string
+  investmentType: InvestmentType
+  investmentPlatform: string
+  coinId?: string
+  coinSymbol?: string
+  amount: number
+  quantity?: number
+  date: Date
+  notes?: string
+  createdAt: Date
+}
+
 export interface Goal {
   id?: number
   name: string

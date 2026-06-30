@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, TrendingUp, TrendingDown, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Pencil, Trash2, RefreshCw, ArrowDownToLine, History, Undo2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -8,12 +8,13 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { InvestmentForm } from './InvestmentForm'
-import { useInvestments } from '../../hooks/useData'
+import { WithdrawalForm } from './WithdrawalForm'
+import { useInvestments, useWithdrawals } from '../../hooks/useData'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency } from '../../utils/format'
 import { INVESTMENT_TYPE_LABELS } from '../../types'
-import { deleteInvestment } from '../../database/queries'
-import type { Investment } from '../../types'
+import { deleteInvestment, deleteWithdrawal } from '../../database/queries'
+import type { Investment, Withdrawal } from '../../types'
 import { formatDate } from '../../utils/date'
 
 const typeColors: Record<string, string> = {
@@ -40,9 +41,13 @@ function PnlBadge({ pnl, pct }: { pnl: number; pct: number }) {
 
 export function InvestmentsPage() {
   const investments = useInvestments()
-  const [addOpen, setAddOpen]         = useState(false)
-  const [editTarget, setEditTarget]   = useState<Investment | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Investment | null>(null)
+  const withdrawals = useWithdrawals()
+  const [addOpen, setAddOpen]             = useState(false)
+  const [editTarget, setEditTarget]       = useState<Investment | null>(null)
+  const [deleteTarget, setDeleteTarget]   = useState<Investment | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<Investment | null>(null)
+  const [undoTarget, setUndoTarget]       = useState<Withdrawal | null>(null)
+  const [showHistory, setShowHistory]     = useState(false)
 
   // Extract coinIds for all crypto investments
   const coinIds = useMemo(
@@ -237,14 +242,23 @@ export function InvestmentsPage() {
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <button
+                        onClick={() => setWithdrawTarget(inv)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-accent-500/8 hover:text-accent-500 transition-colors"
+                        title="Sacar"
+                      >
+                        <ArrowDownToLine size={12} />
+                      </button>
+                      <button
                         onClick={() => setEditTarget(inv)}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors"
+                        title="Editar"
                       >
                         <Pencil size={12} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(inv)}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-text-muted hover:bg-status-danger/8 hover:text-status-danger transition-colors"
+                        title="Excluir"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -257,12 +271,59 @@ export function InvestmentsPage() {
         </AnimatePresence>
       </Card>
 
+      {/* Withdrawal history */}
+      {withdrawals.length > 0 && (
+        <div className="mt-5">
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors mb-2"
+          >
+            <History size={13} />
+            Histórico de saques ({withdrawals.length})
+          </button>
+          {showHistory && (
+            <Card padded={false}>
+              {withdrawals.map((w, i) => (
+                <div
+                  key={w.id}
+                  className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-border-subtle' : ''}`}
+                >
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-accent-500/10 text-accent-500">
+                    <ArrowDownToLine size={14} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{w.investmentName}</p>
+                    <p className="text-xs text-text-muted">
+                      {formatDate(w.date)}
+                      {w.quantity ? ` · ${w.quantity.toLocaleString('pt-BR', { maximumFractionDigits: 6 })} ${w.coinSymbol}` : ''}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-text-primary flex-shrink-0">
+                    {formatCurrency(w.amount)}
+                  </p>
+                  <button
+                    onClick={() => setUndoTarget(w)}
+                    className="w-7 h-7 rounded-xl flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors flex-shrink-0"
+                    title="Desfazer saque"
+                  >
+                    <Undo2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Novo investimento">
         <InvestmentForm onClose={() => setAddOpen(false)} />
       </Modal>
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Editar investimento">
         {editTarget && <InvestmentForm investment={editTarget} onClose={() => setEditTarget(null)} />}
+      </Modal>
+      <Modal open={!!withdrawTarget} onClose={() => setWithdrawTarget(null)} title="Sacar investimento">
+        {withdrawTarget && <WithdrawalForm investment={withdrawTarget} onClose={() => setWithdrawTarget(null)} />}
       </Modal>
       <ConfirmDialog
         open={!!deleteTarget}
@@ -271,6 +332,14 @@ export function InvestmentsPage() {
         title="Excluir investimento"
         description={`Excluir "${deleteTarget?.name}"?`}
         confirmLabel="Excluir"
+      />
+      <ConfirmDialog
+        open={!!undoTarget}
+        onClose={() => setUndoTarget(null)}
+        onConfirm={async () => { await deleteWithdrawal(undoTarget!.id!); setUndoTarget(null) }}
+        title="Desfazer saque"
+        description={`O valor de ${undoTarget ? formatCurrency(undoTarget.amount) : ''} voltará para "${undoTarget?.investmentName}".`}
+        confirmLabel="Desfazer"
       />
     </div>
   )
