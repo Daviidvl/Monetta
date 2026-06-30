@@ -71,7 +71,10 @@ export interface Withdrawal {
   investmentPlatform: string
   coinId?: string
   coinSymbol?: string
+  /** Cash value actually received at withdrawal time (market value for crypto). */
   amount: number
+  /** Portion of the investment's original cost basis removed by this withdrawal. */
+  costBasis: number
   quantity?: number
   date: Date
   notes?: string

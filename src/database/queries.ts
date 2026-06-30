@@ -210,10 +210,31 @@ interface AddWithdrawalInput {
 }
 
 // Withdraws money from an investment, shrinking its amount/quantity.
+// `input.amount` is the cash actually received (market value for crypto, which
+// may exceed the original cost basis). The investment's cost-basis `amount`
+// is reduced proportionally to the share of quantity sold, not by the cash
+// received — otherwise withdrawing appreciated crypto would zero it out early.
 // If the withdrawal exhausts the position, the investment is closed (deleted).
 export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> {
   const investment = await db.investments.get(input.investmentId)
   if (!investment) throw new Error('Investimento não encontrado')
+
+  const isCrypto = investment.quantity !== undefined && input.quantity !== undefined
+
+  let costBasis: number
+  let remainingAmount: number
+  let remainingQuantity: number | undefined
+
+  if (isCrypto) {
+    const soldRatio = investment.quantity! > 0 ? Math.min(1, input.quantity! / investment.quantity!) : 1
+    costBasis = investment.amount * soldRatio
+    remainingAmount = Math.max(0, investment.amount - costBasis)
+    remainingQuantity = Math.max(0, investment.quantity! - input.quantity!)
+  } else {
+    costBasis = Math.min(input.amount, investment.amount)
+    remainingAmount = Math.max(0, investment.amount - costBasis)
+    remainingQuantity = investment.quantity
+  }
 
   const now = new Date()
   const record: Omit<Withdrawal, 'id'> = {
@@ -224,16 +245,12 @@ export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> 
     coinId:             investment.coinId,
     coinSymbol:         investment.coinSymbol,
     amount:             input.amount,
+    costBasis,
     quantity:           input.quantity,
     date:               input.date,
     notes:              input.notes,
     createdAt:          now,
   }
-
-  const remainingAmount = Math.max(0, investment.amount - input.amount)
-  const remainingQuantity = investment.quantity !== undefined
-    ? Math.max(0, investment.quantity - (input.quantity ?? 0))
-    : undefined
 
   const isFullWithdrawal =
     remainingAmount <= 0.005 ||
@@ -267,7 +284,7 @@ export async function deleteWithdrawal(id: number): Promise<void> {
 
     if (investment) {
       await db.investments.update(withdrawal.investmentId, {
-        amount: investment.amount + withdrawal.amount,
+        amount: investment.amount + withdrawal.costBasis,
         quantity: investment.quantity !== undefined
           ? investment.quantity + (withdrawal.quantity ?? 0)
           : investment.quantity,
@@ -278,7 +295,7 @@ export async function deleteWithdrawal(id: number): Promise<void> {
         name:       withdrawal.investmentName,
         type:       withdrawal.investmentType,
         platform:   withdrawal.investmentPlatform,
-        amount:     withdrawal.amount,
+        amount:     withdrawal.costBasis,
         quantity:   withdrawal.quantity,
         coinId:     withdrawal.coinId,
         coinSymbol: withdrawal.coinSymbol,

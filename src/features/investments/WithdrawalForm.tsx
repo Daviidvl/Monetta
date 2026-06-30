@@ -14,7 +14,6 @@ interface WithdrawalFormProps {
 
 export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
   const isCrypto = !!investment.coinId
-  const maxAmount   = investment.amount
   const maxQuantity = investment.quantity ?? 0
 
   const [loading, setLoading]   = useState(false)
@@ -25,6 +24,13 @@ export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
 
   const [livePrice, setLivePrice]     = useState<number | null>(null)
   const [loadingPrice, setLoadingPrice] = useState(isCrypto)
+
+  // For crypto, what's available to withdraw is the CURRENT market value
+  // (quantity × live price), not the original cost-basis `amount` — the
+  // position may have appreciated since purchase.
+  const maxAmount = isCrypto
+    ? (livePrice ? maxQuantity * livePrice : investment.amount)
+    : investment.amount
 
   useEffect(() => {
     if (!isCrypto || !investment.coinId) return
@@ -66,8 +72,8 @@ export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
 
   const parsedAmount   = parseNumber(amount)
   const parsedQuantity = parseNumber(quantity)
-  const exceedsAmount   = parsedAmount > maxAmount + 0.005
-  const exceedsQuantity = isCrypto && parsedQuantity > maxQuantity + 1e-8
+  const exceedsAmount   = parsedAmount > maxAmount * 1.001 + 0.01
+  const exceedsQuantity = isCrypto && parsedQuantity > maxQuantity * 1.001 + 1e-8
 
   const isValid =
     parsedAmount > 0 &&
@@ -113,11 +119,11 @@ export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
               </div>
             ) : livePrice ? (
               <p className="text-[11px] text-text-muted">
-                1 {investment.coinSymbol} = {formatCurrency(livePrice)}
+                1 {investment.coinSymbol} = {formatCurrency(livePrice)} (valor de mercado)
               </p>
             ) : (
               <p className="text-[11px] text-status-warning">
-                Preço indisponível — informe os valores manualmente.
+                Preço indisponível — usando valor investido como referência.
               </p>
             )}
           </div>
