@@ -2,7 +2,7 @@ export type Theme = 'light' | 'dark'
 export type BillStatus = 'pending' | 'paid' | 'overdue'
 export type Priority = 'high' | 'medium' | 'low'
 export type InvestmentType = 'savings' | 'treasury' | 'cdb' | 'stocks' | 'crypto' | 'real_estate' | 'other'
-export type IncomeFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly'
+export type IncomeFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'variable'
 
 export type BillCategory =
   | 'housing'
@@ -25,8 +25,12 @@ export interface UserProfile {
   monthlyIncome: number
   /** How the user actually gets paid. */
   incomeFrequency: IncomeFrequency
-  /** Raw amount per incomeFrequency period, as entered by the user (e.g. R$/day for 'daily'). */
+  /** Primary amount entered — meaning depends on frequency (daily rate, weekly amount, 1st quinzena, or the monthly figure itself for 'monthly'/'variable'). */
   incomeAmount: number
+  /** Only for 'biweekly' — the 2nd payment of the month, when it differs from the 1st. */
+  incomeAmountSecondary?: number
+  /** Only for 'daily' — how many days a month are actually worked (defaults to 22). */
+  workDaysPerMonth?: number
   paymentDay: number
   financialGoal: string
   theme: Theme
@@ -39,6 +43,7 @@ export const INCOME_FREQUENCY_LABELS: Record<IncomeFrequency, string> = {
   weekly:   'Semanal',
   biweekly: 'Quinzenal',
   monthly:  'Mensal',
+  variable: 'Variável',
 }
 
 export interface Bill {

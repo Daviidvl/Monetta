@@ -26,17 +26,10 @@ const dayOptions = Array.from({ length: 31 }, (_, i) => ({
 }))
 
 const frequencyOptions: { value: IncomeFrequency; label: string }[] =
-  (['daily', 'weekly', 'biweekly', 'monthly'] as const).map(value => ({
+  (['monthly', 'biweekly', 'weekly', 'daily', 'variable'] as const).map(value => ({
     value,
     label: INCOME_FREQUENCY_LABELS[value],
   }))
-
-const incomeQuestion: Record<IncomeFrequency, string> = {
-  daily:    'Quanto você recebe por dia?',
-  weekly:   'Quanto você recebe por semana?',
-  biweekly: 'Quanto você recebe por quinzena?',
-  monthly:  'Quanto você recebe por mês?',
-}
 
 const paydayCopy: Record<IncomeFrequency, { title: string; subtitle: string; label: string }> = {
   monthly: {
@@ -57,6 +50,11 @@ const paydayCopy: Record<IncomeFrequency, { title: string; subtitle: string; lab
   daily: {
     title: 'Uma data de referência para o calendário?',
     subtitle: 'Como você recebe todo dia, isso é só uma data de referência.',
+    label: 'Dia de referência',
+  },
+  variable: {
+    title: 'Uma data de referência para o calendário?',
+    subtitle: 'Como sua renda varia, escolha um dia do mês pra gente se orientar.',
     label: 'Dia de referência',
   },
 }
@@ -92,13 +90,31 @@ export function OnboardingPage() {
 
   const [name, setName] = useState('')
   const [income, setIncome] = useState('')
+  const [income2, setIncome2] = useState('')
+  const [workDays, setWorkDays] = useState('22')
   const [frequency, setFrequency] = useState<IncomeFrequency>('monthly')
   const [paymentDay, setPaymentDay] = useState('5')
   const [goal, setGoal] = useState('control')
 
+  // Builds the normalized income input from whatever fields are relevant
+  // to the selected frequency (biweekly's 2nd payment / daily's work days).
+  function buildIncomeInput() {
+    return {
+      frequency,
+      amount: parseNumber(income),
+      amountSecondary: frequency === 'biweekly' && income2.trim() !== '' ? parseNumber(income2) : undefined,
+      workDays: frequency === 'daily' ? (parseInt(workDays) || undefined) : undefined,
+    }
+  }
+
+  const incomeStepValid =
+    frequency === 'daily'
+      ? parseNumber(income) > 0 && parseInt(workDays) > 0
+      : parseNumber(income) > 0
+
   const canProceed = [
     name.trim().length > 0,
-    parseNumber(income) > 0,
+    incomeStepValid,
     true,
     true,
   ][step]
@@ -108,9 +124,11 @@ export function OnboardingPage() {
     try {
       await saveProfile({
         name: name.trim(),
-        monthlyIncome: toMonthlyIncome(parseNumber(income), frequency),
+        monthlyIncome: toMonthlyIncome(buildIncomeInput()),
         incomeFrequency: frequency,
         incomeAmount: parseNumber(income),
+        incomeAmountSecondary: frequency === 'biweekly' && income2.trim() !== '' ? parseNumber(income2) : undefined,
+        workDaysPerMonth: frequency === 'daily' ? (parseInt(workDays) || undefined) : undefined,
         paymentDay: parseInt(paymentDay),
         financialGoal: goal,
         theme: 'light',
@@ -162,7 +180,7 @@ export function OnboardingPage() {
           )}
           {step === 1 && (
             <Step key="income" title={`Oi, ${name}!`} subtitle="Como você recebe sua renda?">
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {frequencyOptions.map(opt => (
                   <button
                     key={opt.value}
@@ -178,21 +196,82 @@ export function OnboardingPage() {
                   </button>
                 ))}
               </div>
-              <Input
-                label={incomeQuestion[frequency]}
-                placeholder="Ex: 3500"
-                type="number"
-                value={income}
-                onChange={e => setIncome(e.target.value)}
-                prefix={<span className="text-xs font-medium">R$</span>}
-                autoFocus
-                onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
-                hint={
-                  frequency !== 'monthly' && parseNumber(income) > 0
-                    ? `≈ ${formatCurrency(toMonthlyIncome(parseNumber(income), frequency))}/mês`
-                    : undefined
-                }
-              />
+
+              {frequency === 'biweekly' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="1º pagamento"
+                    placeholder="Ex: 800"
+                    type="number"
+                    value={income}
+                    onChange={e => setIncome(e.target.value)}
+                    prefix={<span className="text-xs font-medium">R$</span>}
+                    autoFocus
+                  />
+                  <Input
+                    label="2º pagamento"
+                    placeholder={income ? `Ex: ${income}` : 'Se diferente'}
+                    type="number"
+                    value={income2}
+                    onChange={e => setIncome2(e.target.value)}
+                    prefix={<span className="text-xs font-medium">R$</span>}
+                    onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                    hint={
+                      parseNumber(income) > 0
+                        ? `Total: ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
+                        : undefined
+                    }
+                  />
+                </div>
+              ) : frequency === 'daily' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Valor por dia"
+                    placeholder="Ex: 120"
+                    type="number"
+                    value={income}
+                    onChange={e => setIncome(e.target.value)}
+                    prefix={<span className="text-xs font-medium">R$</span>}
+                    autoFocus
+                    hint={
+                      parseNumber(income) > 0
+                        ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
+                        : undefined
+                    }
+                  />
+                  <Input
+                    label="Dias/mês"
+                    placeholder="22"
+                    type="number"
+                    value={workDays}
+                    onChange={e => setWorkDays(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                    hint="Dias trabalhados"
+                  />
+                </div>
+              ) : (
+                <Input
+                  label={
+                    frequency === 'weekly'   ? 'Quanto você recebe por semana?' :
+                    frequency === 'variable' ? 'Qual sua renda média mensal?' :
+                    'Quanto você recebe por mês?'
+                  }
+                  placeholder="Ex: 3500"
+                  type="number"
+                  value={income}
+                  onChange={e => setIncome(e.target.value)}
+                  prefix={<span className="text-xs font-medium">R$</span>}
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                  hint={
+                    frequency === 'weekly' && parseNumber(income) > 0
+                      ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
+                      : frequency === 'variable'
+                      ? 'Sem problema — dá pra ajustar isso quando quiser no Dashboard.'
+                      : undefined
+                  }
+                />
+              )}
             </Step>
           )}
           {step === 2 && (
