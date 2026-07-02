@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
+import { getMonth, getYear } from '../utils/date'
 
 // ─── UserProfile ───────────────────────────────────────────
 export async function getProfile(): Promise<UserProfile | undefined> {
@@ -215,6 +216,8 @@ interface AddWithdrawalInput {
 // is reduced proportionally to the share of quantity sold, not by the cash
 // received — otherwise withdrawing appreciated crypto would zero it out early.
 // If the withdrawal exhausts the position, the investment is closed (deleted).
+// Money invested isn't treated as a monthly expense, so the withdrawn cash is
+// logged as an income entry for that month — it only hits "disponível" now.
 export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> {
   const investment = await db.investments.get(input.investmentId)
   if (!investment) throw new Error('Investimento não encontrado')
@@ -237,28 +240,39 @@ export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> 
   }
 
   const now = new Date()
-  const record: Omit<Withdrawal, 'id'> = {
-    investmentId:       input.investmentId,
-    investmentName:     investment.name,
-    investmentType:     investment.type,
-    investmentPlatform: investment.platform,
-    coinId:             investment.coinId,
-    coinSymbol:         investment.coinSymbol,
-    amount:             input.amount,
-    costBasis,
-    quantity:           input.quantity,
-    date:               input.date,
-    notes:              input.notes,
-    createdAt:          now,
-  }
-
   const isFullWithdrawal =
     remainingAmount <= 0.005 ||
     (remainingQuantity !== undefined && remainingQuantity <= 1e-8)
 
   let withdrawalId = 0
-  await db.transaction('rw', [db.investments, db.withdrawals], async () => {
-    withdrawalId = await db.withdrawals.add(record)
+  await db.transaction('rw', [db.investments, db.withdrawals, db.incomes], async () => {
+    const incomeEntryId = await db.incomes.add({
+      name:        `Saque: ${investment.name}`,
+      category:    'investment_withdrawal',
+      amount:      input.amount,
+      month:       getMonth(input.date) + 1,
+      year:        getYear(input.date),
+      isRecurring: false,
+      createdAt:   now,
+      updatedAt:   now,
+    })
+
+    withdrawalId = await db.withdrawals.add({
+      investmentId:       input.investmentId,
+      investmentName:     investment.name,
+      investmentType:     investment.type,
+      investmentPlatform: investment.platform,
+      coinId:             investment.coinId,
+      coinSymbol:         investment.coinSymbol,
+      amount:             input.amount,
+      costBasis,
+      quantity:           input.quantity,
+      date:               input.date,
+      notes:              input.notes,
+      createdAt:          now,
+      incomeEntryId,
+    })
+
     if (isFullWithdrawal) {
       await db.investments.delete(input.investmentId)
     } else {
@@ -273,14 +287,19 @@ export async function addWithdrawal(input: AddWithdrawalInput): Promise<number> 
 }
 
 // Reverses a withdrawal, restoring the amount/quantity to the investment
-// (re-creating it if it had been fully withdrawn).
+// (re-creating it if it had been fully withdrawn) and removing the income
+// entry that was logged for the withdrawn cash.
 export async function deleteWithdrawal(id: number): Promise<void> {
   const withdrawal = await db.withdrawals.get(id)
   if (!withdrawal) return
 
-  await db.transaction('rw', [db.investments, db.withdrawals], async () => {
+  await db.transaction('rw', [db.investments, db.withdrawals, db.incomes], async () => {
     const investment = await db.investments.get(withdrawal.investmentId)
     const now = new Date()
+
+    if (withdrawal.incomeEntryId) {
+      await db.incomes.delete(withdrawal.incomeEntryId)
+    }
 
     if (investment) {
       await db.investments.update(withdrawal.investmentId, {

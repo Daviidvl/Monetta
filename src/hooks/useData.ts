@@ -69,7 +69,9 @@ export function useDashboardData() {
   const totalPaid          = paidBills.reduce((s, b) => s + b.amount, 0)
   const totalInvested      = investments.reduce((s, i) => s + i.amount, 0)
   const totalDebitExpenses = debitExpenses.reduce((s, e) => s + e.amount, 0)
-  const remaining          = totalIncome - totalExpenses - totalInvested - totalDebitExpenses
+  // Money moved into investments isn't a monthly expense — it only affects
+  // "remaining" when it comes back out via a withdrawal (counted as income then).
+  const remaining          = totalIncome - totalExpenses - totalDebitExpenses
 
   const dueSoon = pendingBills
     .filter(b => { const diff = b.dueDay - currentDay; return diff >= 0 && diff <= 7 })

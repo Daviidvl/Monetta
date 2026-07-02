@@ -79,6 +79,8 @@ export interface Withdrawal {
   date: Date
   notes?: string
   createdAt: Date
+  /** IncomeEntry created alongside this withdrawal (amount counted as income for the month). */
+  incomeEntryId?: number
 }
 
 export interface Goal {
@@ -141,7 +143,7 @@ export const STATUS_LABELS: Record<BillStatus, string> = {
 }
 
 // ─── Income ──────────────────────────────────────────────────
-export type IncomeCategory = 'salary' | 'bonus' | 'freelance' | 'vacation' | 'other'
+export type IncomeCategory = 'salary' | 'bonus' | 'freelance' | 'vacation' | 'investment_withdrawal' | 'other'
 
 export interface IncomeEntry {
   id?: number
@@ -157,19 +159,21 @@ export interface IncomeEntry {
 }
 
 export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {
-  salary:    'Salário',
-  bonus:     'Bônus / 13º',
-  freelance: 'Freela / Renda extra',
-  vacation:  'Férias',
-  other:     'Outros',
+  salary:                'Salário',
+  bonus:                 'Bônus / 13º',
+  freelance:             'Freela / Renda extra',
+  vacation:              'Férias',
+  investment_withdrawal: 'Saque de investimento',
+  other:                 'Outros',
 }
 
 export const INCOME_CATEGORY_ICONS: Record<IncomeCategory, string> = {
-  salary:    '$',
-  bonus:     '+',
-  freelance: '✦',
-  vacation:  '☀',
-  other:     '·',
+  salary:                '$',
+  bonus:                 '+',
+  freelance:             '✦',
+  vacation:              '☀',
+  investment_withdrawal: '↓',
+  other:                 '·',
 }
 
 // ─── Debit Expenses ──────────────────────────────────────────
