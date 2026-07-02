@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Plus, Search, Receipt, History, PartyPopper, ChevronDown } from 'lucide-react'
+import { Plus, Search, Receipt, History, ChevronDown } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -12,7 +12,7 @@ import { BillCard } from './BillCard'
 import { BillForm } from './BillForm'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
-import { getBillHistory, resetMonthlyBills, type BillHistoryEntry } from '../../database/queries'
+import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
 import type { Bill, Priority } from '../../types'
 
@@ -201,7 +201,6 @@ export function BillsPage() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [search, setSearch]       = useState('')
   const [addOpen, setAddOpen]     = useState(false)
-  const [justClosed, setJustClosed] = useState<string | null>(null)
 
   const bills = useBills()
   useProfile()
@@ -210,40 +209,10 @@ export function BillsPage() {
   // bill views entirely, they only matter for Pagas/Histórico from here on.
   const activeBills = useMemo(() => bills.filter(b => !isFinishedInstallment(b)), [bills])
 
-  const { activeMonth, activeYear, setActiveMonth } = useAppStore()
-  const closingRef = useRef(false)
-
-  // When every bill in the current cycle is paid, close it out immediately:
-  // recurring/unfinished-installment bills reset to pending under next month's
-  // cycle, so "Contas" always shows a fresh, clearly-labeled month.
-  useEffect(() => {
-    if (activeBills.length === 0 || closingRef.current) return
-    if (!activeBills.every(b => b.status === 'paid')) return
-
-    // Nothing would actually reset (e.g. only one-off bills) — advancing the
-    // cycle would be a no-op that just keeps incrementing the month label
-    // every time this page mounts. Skip it.
-    const hasResettableBills = activeBills.some(b =>
-      b.isRecurring || (b.isInstallment && (b.installmentPaid ?? 0) < (b.installmentTotal ?? 1)),
-    )
-    if (!hasResettableBills) return
-
-    closingRef.current = true
-    const nextMonth = activeMonth === 12 ? 1 : activeMonth + 1
-    const nextYear  = activeMonth === 12 ? activeYear + 1 : activeYear
-
-    resetMonthlyBills(nextMonth, nextYear).then(() => {
-      setActiveMonth(nextMonth, nextYear)
-      setJustClosed(MONTH_NAMES[nextMonth - 1])
-      closingRef.current = false
-    })
-  }, [activeBills, activeMonth, activeYear, setActiveMonth])
-
-  useEffect(() => {
-    if (!justClosed) return
-    const t = setTimeout(() => setJustClosed(null), 5000)
-    return () => clearTimeout(t)
-  }, [justClosed])
+  // activeMonth/activeYear track the real calendar (synced by MonthlyResetGuard
+  // in App.tsx) — bills marked paid stay visible in Pagas until the month
+  // actually turns over, instead of resetting the moment everything is paid.
+  const { activeMonth, activeYear } = useAppStore()
 
   const filtered = useMemo(() => {
     let list = [...activeBills]
@@ -283,23 +252,6 @@ export function BillsPage() {
           </Button>
         }
       />
-
-      {/* Cycle closed banner */}
-      <AnimatePresence>
-        {justClosed && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
-            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-status-success/8 border border-status-success/20"
-          >
-            <PartyPopper size={16} className="text-status-success flex-shrink-0" />
-            <p className="text-sm text-status-success font-medium">
-              Mês fechado! Contas de {justClosed} já disponíveis.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 mb-5">

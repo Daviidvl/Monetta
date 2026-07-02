@@ -43,10 +43,10 @@ function MonthlyResetGuard() {
         .then(() => setLastResetKey(currentKey))
     }
 
-    // activeMonth/activeYear never trails the real calendar — but it may run
-    // ahead if the user already closed the cycle early, so only correct backward drift.
-    const activeKey = `${activeYear}-${String(activeMonth).padStart(2, '0')}`
-    if (activeKey < currentKey) {
+    // activeMonth/activeYear always mirrors the real calendar — bills marked
+    // paid stay visible in Pagas until the month actually turns over, so
+    // there's no legitimate reason for it to run ahead or behind anymore.
+    if (activeMonth !== currentMonth || activeYear !== currentYear) {
       setActiveMonth(currentMonth, currentYear)
     }
   }, [hasOnboarded])
