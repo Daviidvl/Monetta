@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Plus, Search, Receipt, History, PartyPopper } from 'lucide-react'
+import { Plus, Search, Receipt, History, PartyPopper, ChevronDown } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -39,6 +39,54 @@ function isFinishedInstallment(bill: Bill): boolean {
   return bill.isInstallment && (bill.installmentPaid ?? 0) >= (bill.installmentTotal ?? 1)
 }
 
+const listStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+}
+
+const listItem = {
+  hidden: { opacity: 0, y: -10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
+}
+
+// ─── Collapsible month section — click the bar, list slides down ────────────
+function MonthAccordion({ label, total, children }: { label: string; total: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-surface-100 hover:bg-surface-200 transition-colors"
+      >
+        <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">{label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-status-success">{formatCurrency(total)}</span>
+          <ChevronDown
+            size={14}
+            className={`text-text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <motion.div variants={listStagger} initial="hidden" animate="show" className="pt-2">
+              {children}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 // ─── Paid bills grouped by month ─────────────────────────────────────────────
 function PaidByMonth({ bills }: { bills: Bill[] }) {
   const grouped = useMemo(() => {
@@ -68,29 +116,25 @@ function PaidByMonth({ bills }: { bills: Bill[] }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {grouped.map(([key, groupBills]) => {
         const [yearStr, monthStr] = key.split('-')
         const month    = parseInt(monthStr)
         const year     = parseInt(yearStr)
         const total    = groupBills.reduce((s, b) => s + b.amount, 0)
         const isKnown  = key !== 'sem-data' && !isNaN(month) && !isNaN(year)
+        const label    = isKnown ? `Contas de ${MONTH_NAMES[month - 1]} ${year}` : 'Sem data'
 
         return (
-          <div key={key}>
-            {/* Month header */}
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                {isKnown ? `Contas de ${MONTH_NAMES[month - 1]} ${year}` : 'Sem data'}
-              </p>
-              <p className="text-xs font-semibold text-status-success">
-                {formatCurrency(total)}
-              </p>
-            </div>
+          <MonthAccordion key={key} label={label} total={total}>
             <Card padded={false}>
-              {groupBills.map(bill => <BillCard key={bill.id} bill={bill} />)}
+              {groupBills.map(bill => (
+                <motion.div key={bill.id} variants={listItem}>
+                  <BillCard bill={bill} />
+                </motion.div>
+              ))}
             </Card>
-          </div>
+          </MonthAccordion>
         )
       })}
     </div>
@@ -122,31 +166,27 @@ function HistoryTab() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {grouped.map(([key, entries]) => {
         const [yearStr, monthStr] = key.split('-')
         const month = parseInt(monthStr)
         const year  = parseInt(yearStr)
         const total = entries.reduce((s, e) => s + e.amount, 0)
+        const label = `Contas de ${MONTH_NAMES[month - 1]} ${year}`
+
         return (
-          <div key={key}>
-            <div className="flex items-center justify-between mb-2 px-1">
-              <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                Contas de {MONTH_NAMES[month - 1]} {year}
-              </p>
-              <p className="text-xs font-semibold text-status-success">{formatCurrency(total)}</p>
-            </div>
+          <MonthAccordion key={key} label={label} total={total}>
             <Card padded={false}>
               <div className="divide-y divide-border-subtle">
                 {entries.map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                  <motion.div key={i} variants={listItem} className="flex items-center justify-between px-4 py-2.5">
                     <p className="text-sm text-text-primary">{entry.billName}</p>
                     <p className="text-sm font-medium text-text-secondary">{formatCurrency(entry.amount)}</p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </Card>
-          </div>
+          </MonthAccordion>
         )
       })}
     </div>
