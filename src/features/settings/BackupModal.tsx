@@ -19,7 +19,7 @@ export function BackupModal({ open, onClose }: BackupModalProps) {
   const [importMessage, setImportMessage] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const { setHasOnboarded, setLastResetKey } = useAppStore()
+  const { setHasOnboarded, setLastResetKey, setActiveMonth } = useAppStore()
 
   async function handleExport() {
     setExporting(true)
@@ -63,9 +63,13 @@ export function BackupModal({ open, onClose }: BackupModalProps) {
     setClearing(true)
     try {
       await clearAllData()
-      // Reset app state so onboarding shows again
+      // Reset app state so onboarding shows again — activeMonth/activeYear
+      // must go back to the real current month too, otherwise a cycle
+      // advanced by earlier usage keeps showing after the wipe.
+      const now = new Date()
       setHasOnboarded(false)
       setLastResetKey('')
+      setActiveMonth(now.getMonth() + 1, now.getFullYear())
       onClose()
     } finally {
       setClearing(false)
