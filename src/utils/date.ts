@@ -21,34 +21,25 @@ export function formatMonthShort(month: number, year: number): string {
   return format(date, "MMM 'yy", { locale: ptBR })
 }
 
-export function dueDayLabel(dueDay: number): string {
+// Days between "today" and a bill's due date, resolved against the billing
+// cycle it belongs to (activeMonth/activeYear) — not just the bare day number.
+// A dueDay of 1 for a cycle that hasn't started in real time yet (cycle
+// closed early, ahead of the calendar) must not be treated as overdue.
+export function daysUntilDue(dueDay: number, cycleMonth: number, cycleYear: number): number {
   const today = new Date()
-  const currentDay = getDate(today)
-  const diff = dueDay - currentDay
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(cycleYear, cycleMonth - 1, dueDay)
+  return Math.round((dueDate.getTime() - today.getTime()) / 86_400_000)
+}
+
+export function dueDayLabel(dueDay: number, cycleMonth: number, cycleYear: number): string {
+  const diff = daysUntilDue(dueDay, cycleMonth, cycleYear)
 
   if (diff < 0) return 'Vencida'
   if (diff === 0) return 'Vence hoje'
   if (diff === 1) return 'Vence amanhã'
   if (diff <= 7) return `Vence em ${diff} dias`
   return `Dia ${dueDay}`
-}
-
-export function isDueSoon(dueDay: number, days = 7): boolean {
-  const today = new Date()
-  const currentDay = getDate(today)
-  const diff = dueDay - currentDay
-  return diff >= 0 && diff <= days
-}
-
-export function isOverdue(dueDay: number): boolean {
-  const today = new Date()
-  const currentDay = getDate(today)
-  return dueDay < currentDay
-}
-
-export function getDaysUntilDue(dueDay: number): number {
-  const today = new Date()
-  return dueDay - getDate(today)
 }
 
 export function currentMonthYear() {

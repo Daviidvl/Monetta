@@ -64,7 +64,7 @@ export function DashboardPage() {
   const portfolioPnl    = totalCurrentInvested - totalInvested
   const hasCrypto       = cryptoIds.length > 0 && Object.keys(prices).length > 0
 
-  const { theme, toggleTheme } = useAppStore()
+  const { theme, toggleTheme, activeMonth, activeYear } = useAppStore()
 
   const insights   = generateInsights(profile, bills, investments, goals, totalIncome)
   const marketTips = useMarketTips()
@@ -337,7 +337,7 @@ export function DashboardPage() {
                   <div key={bill.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-text-primary truncate">{bill.name}</p>
-                      <p className="text-xs text-text-muted">{dueDayLabel(bill.dueDay)}</p>
+                      <p className="text-xs text-text-muted">{dueDayLabel(bill.dueDay, activeMonth, activeYear)}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-medium text-text-primary">{formatCurrency(bill.amount)}</p>

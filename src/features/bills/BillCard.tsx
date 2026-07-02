@@ -108,7 +108,7 @@ export function BillCard({ bill }: BillCardProps) {
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-text-muted">{CATEGORY_LABELS[bill.category]}</span>
             <span className="text-text-muted">·</span>
-            <span className="text-xs text-text-muted">{dueDayLabel(bill.dueDay)}</span>
+            <span className="text-xs text-text-muted">{dueDayLabel(bill.dueDay, activeMonth, activeYear)}</span>
           </div>
         </div>
 

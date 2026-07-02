@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../database/db'
-import { getDate, getMonth, getYear } from '../utils/date'
+import { getMonth, getYear, daysUntilDue } from '../utils/date'
+import { useAppStore } from '../store/useAppStore'
 
 export function useProfile() {
   return useLiveQuery(() => db.userProfile.orderBy('id').first())
@@ -51,9 +52,9 @@ export function useDashboardData() {
   const goals      = useGoals()
 
   const now          = new Date()
-  const currentDay   = getDate(now)
   const currentMonth = getMonth(now) + 1
   const currentYear  = getYear(now)
+  const { activeMonth, activeYear } = useAppStore()
 
   const incomeEntries = useIncomes(currentMonth, currentYear)
   const debitExpenses = useMonthlyDebitExpenses(currentMonth, currentYear)
@@ -74,10 +75,10 @@ export function useDashboardData() {
   const remaining          = totalIncome - totalExpenses - totalDebitExpenses
 
   const dueSoon = pendingBills
-    .filter(b => { const diff = b.dueDay - currentDay; return diff >= 0 && diff <= 7 })
+    .filter(b => { const diff = daysUntilDue(b.dueDay, activeMonth, activeYear); return diff >= 0 && diff <= 7 })
     .sort((a, b) => a.dueDay - b.dueDay)
 
-  const overdue      = pendingBills.filter(b => b.dueDay < currentDay)
+  const overdue      = pendingBills.filter(b => daysUntilDue(b.dueDay, activeMonth, activeYear) < 0)
   const installments = bills.filter(b => b.isInstallment)
 
   return {
