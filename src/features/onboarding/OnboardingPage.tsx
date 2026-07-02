@@ -6,7 +6,9 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Input'
 import { saveProfile } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
-import { parseNumber } from '../../utils/format'
+import { parseNumber, formatCurrency } from '../../utils/format'
+import { toMonthlyIncome } from '../../utils/income'
+import { INCOME_FREQUENCY_LABELS, type IncomeFrequency } from '../../types'
 
 const STEP_COUNT = 4
 
@@ -22,6 +24,42 @@ const dayOptions = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1),
   label: `Dia ${i + 1}`,
 }))
+
+const frequencyOptions: { value: IncomeFrequency; label: string }[] =
+  (['daily', 'weekly', 'biweekly', 'monthly'] as const).map(value => ({
+    value,
+    label: INCOME_FREQUENCY_LABELS[value],
+  }))
+
+const incomeQuestion: Record<IncomeFrequency, string> = {
+  daily:    'Quanto você recebe por dia?',
+  weekly:   'Quanto você recebe por semana?',
+  biweekly: 'Quanto você recebe por quinzena?',
+  monthly:  'Quanto você recebe por mês?',
+}
+
+const paydayCopy: Record<IncomeFrequency, { title: string; subtitle: string; label: string }> = {
+  monthly: {
+    title: 'Quando você recebe?',
+    subtitle: 'Isso nos ajuda a organizar seu calendário financeiro.',
+    label: 'Dia do pagamento',
+  },
+  biweekly: {
+    title: 'Qual o primeiro dia de pagamento no mês?',
+    subtitle: 'Você recebe quinzenalmente — vamos usar essa primeira data para o calendário.',
+    label: 'Dia do 1º pagamento',
+  },
+  weekly: {
+    title: 'Uma data de referência para o calendário?',
+    subtitle: 'Como você recebe toda semana, escolha um dia do mês pra gente se orientar.',
+    label: 'Dia de referência',
+  },
+  daily: {
+    title: 'Uma data de referência para o calendário?',
+    subtitle: 'Como você recebe todo dia, isso é só uma data de referência.',
+    label: 'Dia de referência',
+  },
+}
 
 interface StepProps {
   children: React.ReactNode
@@ -54,6 +92,7 @@ export function OnboardingPage() {
 
   const [name, setName] = useState('')
   const [income, setIncome] = useState('')
+  const [frequency, setFrequency] = useState<IncomeFrequency>('monthly')
   const [paymentDay, setPaymentDay] = useState('5')
   const [goal, setGoal] = useState('control')
 
@@ -69,7 +108,9 @@ export function OnboardingPage() {
     try {
       await saveProfile({
         name: name.trim(),
-        monthlyIncome: parseNumber(income),
+        monthlyIncome: toMonthlyIncome(parseNumber(income), frequency),
+        incomeFrequency: frequency,
+        incomeAmount: parseNumber(income),
         paymentDay: parseInt(paymentDay),
         financialGoal: goal,
         theme: 'light',
@@ -120,9 +161,25 @@ export function OnboardingPage() {
             </Step>
           )}
           {step === 1 && (
-            <Step key="income" title={`Oi, ${name}!`} subtitle="Qual é a sua renda mensal aproximada?">
+            <Step key="income" title={`Oi, ${name}!`} subtitle="Como você recebe sua renda?">
+              <div className="grid grid-cols-4 gap-2">
+                {frequencyOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFrequency(opt.value)}
+                    className={`px-2 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                      frequency === opt.value
+                        ? 'border-accent-500 bg-accent-500/8 text-accent-500'
+                        : 'border-border-base text-text-secondary hover:border-border-strong'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <Input
-                label="Salário mensal"
+                label={incomeQuestion[frequency]}
                 placeholder="Ex: 3500"
                 type="number"
                 value={income}
@@ -130,13 +187,18 @@ export function OnboardingPage() {
                 prefix={<span className="text-xs font-medium">R$</span>}
                 autoFocus
                 onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                hint={
+                  frequency !== 'monthly' && parseNumber(income) > 0
+                    ? `≈ ${formatCurrency(toMonthlyIncome(parseNumber(income), frequency))}/mês`
+                    : undefined
+                }
               />
             </Step>
           )}
           {step === 2 && (
-            <Step key="payday" title="Quando você recebe?" subtitle="Isso nos ajuda a organizar seu calendário financeiro.">
+            <Step key="payday" title={paydayCopy[frequency].title} subtitle={paydayCopy[frequency].subtitle}>
               <Select
-                label="Dia do pagamento"
+                label={paydayCopy[frequency].label}
                 value={paymentDay}
                 onChange={e => setPaymentDay(e.target.value)}
                 options={dayOptions}

@@ -2,6 +2,7 @@ export type Theme = 'light' | 'dark'
 export type BillStatus = 'pending' | 'paid' | 'overdue'
 export type Priority = 'high' | 'medium' | 'low'
 export type InvestmentType = 'savings' | 'treasury' | 'cdb' | 'stocks' | 'crypto' | 'real_estate' | 'other'
+export type IncomeFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly'
 
 export type BillCategory =
   | 'housing'
@@ -20,12 +21,24 @@ export type BillCategory =
 export interface UserProfile {
   id?: number
   name: string
+  /** Always normalized to a monthly total, regardless of incomeFrequency — used in all money math. */
   monthlyIncome: number
+  /** How the user actually gets paid. */
+  incomeFrequency: IncomeFrequency
+  /** Raw amount per incomeFrequency period, as entered by the user (e.g. R$/day for 'daily'). */
+  incomeAmount: number
   paymentDay: number
   financialGoal: string
   theme: Theme
   createdAt: Date
   updatedAt: Date
+}
+
+export const INCOME_FREQUENCY_LABELS: Record<IncomeFrequency, string> = {
+  daily:    'Diário',
+  weekly:   'Semanal',
+  biweekly: 'Quinzenal',
+  monthly:  'Mensal',
 }
 
 export interface Bill {

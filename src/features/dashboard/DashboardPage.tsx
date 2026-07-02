@@ -22,7 +22,7 @@ import { generateInsights } from '../../utils/insights'
 import { TipsCarousel } from '../../components/ui/TipsCarousel'
 import { useMarketTips } from '../../hooks/useMarketTips'
 import { useAppStore } from '../../store/useAppStore'
-import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, type IncomeEntry } from '../../types'
+import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, INCOME_FREQUENCY_LABELS, type IncomeEntry } from '../../types'
 import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
 import { calcSavingPlan, formatMonths } from '../../utils/goals'
 
@@ -262,7 +262,11 @@ export function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-text-primary">Salário base</p>
                   {profile?.paymentDay && (
-                    <p className="text-xs text-text-muted">Todo dia {profile.paymentDay}</p>
+                    <p className="text-xs text-text-muted">
+                      {profile.incomeFrequency && profile.incomeFrequency !== 'monthly'
+                        ? `${INCOME_FREQUENCY_LABELS[profile.incomeFrequency]} · a partir do dia ${profile.paymentDay}`
+                        : `Todo dia ${profile.paymentDay}`}
+                    </p>
                   )}
                 </div>
                 <p className="text-sm font-semibold text-text-primary flex-shrink-0">
