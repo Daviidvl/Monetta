@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
-import { Plus, Search, Receipt, History } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Plus, Search, Receipt, History, PartyPopper } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -12,7 +12,8 @@ import { BillCard } from './BillCard'
 import { BillForm } from './BillForm'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
-import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
+import { getBillHistory, resetMonthlyBills, type BillHistoryEntry } from '../../database/queries'
+import { useAppStore } from '../../store/useAppStore'
 import type { Bill, Priority } from '../../types'
 
 type Tab = 'all' | 'pending' | 'paid' | 'installments' | 'history'
@@ -74,7 +75,7 @@ function PaidByMonth({ bills }: { bills: Bill[] }) {
             {/* Month header */}
             <div className="flex items-center justify-between mb-2 px-1">
               <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                {isKnown ? `${MONTH_NAMES[month - 1]} ${year}` : 'Sem data'}
+                {isKnown ? `Contas de ${MONTH_NAMES[month - 1]} ${year}` : 'Sem data'}
               </p>
               <p className="text-xs font-semibold text-status-success">
                 {formatCurrency(total)}
@@ -125,7 +126,7 @@ function HistoryTab() {
           <div key={key}>
             <div className="flex items-center justify-between mb-2 px-1">
               <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-                {MONTH_NAMES[month - 1]} {year}
+                Contas de {MONTH_NAMES[month - 1]} {year}
               </p>
               <p className="text-xs font-semibold text-status-success">{formatCurrency(total)}</p>
             </div>
@@ -154,9 +155,45 @@ export function BillsPage() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [search, setSearch]       = useState('')
   const [addOpen, setAddOpen]     = useState(false)
+  const [justClosed, setJustClosed] = useState<string | null>(null)
 
   const bills = useBills()
   useProfile()
+
+  const { activeMonth, activeYear, setActiveMonth } = useAppStore()
+  const closingRef = useRef(false)
+
+  // When every bill in the current cycle is paid, close it out immediately:
+  // recurring/unfinished-installment bills reset to pending under next month's
+  // cycle, so "Contas" always shows a fresh, clearly-labeled month.
+  useEffect(() => {
+    if (bills.length === 0 || closingRef.current) return
+    if (!bills.every(b => b.status === 'paid')) return
+
+    // Nothing would actually reset (e.g. only one-off bills or fully-paid
+    // installments) — advancing the cycle would be a no-op that just keeps
+    // incrementing the month label every time this page mounts. Skip it.
+    const hasResettableBills = bills.some(b =>
+      b.isRecurring || (b.isInstallment && (b.installmentPaid ?? 0) < (b.installmentTotal ?? 1)),
+    )
+    if (!hasResettableBills) return
+
+    closingRef.current = true
+    const nextMonth = activeMonth === 12 ? 1 : activeMonth + 1
+    const nextYear  = activeMonth === 12 ? activeYear + 1 : activeYear
+
+    resetMonthlyBills(nextMonth, nextYear).then(() => {
+      setActiveMonth(nextMonth, nextYear)
+      setJustClosed(MONTH_NAMES[nextMonth - 1])
+      closingRef.current = false
+    })
+  }, [bills, activeMonth, activeYear, setActiveMonth])
+
+  useEffect(() => {
+    if (!justClosed) return
+    const t = setTimeout(() => setJustClosed(null), 5000)
+    return () => clearTimeout(t)
+  }, [justClosed])
 
   const filtered = useMemo(() => {
     let list = [...bills]
@@ -197,6 +234,23 @@ export function BillsPage() {
         }
       />
 
+      {/* Cycle closed banner */}
+      <AnimatePresence>
+        {justClosed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-status-success/8 border border-status-success/20"
+          >
+            <PartyPopper size={16} className="text-status-success flex-shrink-0" />
+            <p className="text-sm text-status-success font-medium">
+              Mês fechado! Contas de {justClosed} já disponíveis.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <Card className="p-3">
@@ -233,6 +287,11 @@ export function BillsPage() {
         <HistoryTab />
       ) : (
         <>
+          {/* Active cycle title */}
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2 px-1">
+            Contas de {MONTH_NAMES[activeMonth - 1]} {activeYear}
+          </p>
+
           {/* Search */}
           <div className="relative mb-4">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />

@@ -41,18 +41,19 @@ export async function deleteBill(id: number): Promise<void> {
   await db.paymentRecords.where('billId').equals(id).delete()
 }
 
-export async function markBillPaid(id: number): Promise<void> {
+// `cycleMonth`/`cycleYear` identify the billing cycle the user is currently
+// working through (store's activeMonth/activeYear) — not necessarily the
+// real wall-clock month, since a cycle can be closed out early.
+export async function markBillPaid(id: number, cycleMonth: number, cycleYear: number): Promise<void> {
   const now = new Date()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
   const bill = await db.bills.get(id)
   if (!bill) return
 
   const updates: Partial<Bill> = {
     status: 'paid',
     paidAt: now,
-    paidMonth: month,
-    paidYear: year,
+    paidMonth: cycleMonth,
+    paidYear: cycleYear,
     updatedAt: now,
   }
 
@@ -68,17 +69,17 @@ export async function markBillPaid(id: number): Promise<void> {
     billId: id,
     amount: bill.amount,
     paidAt: now,
-    month,
-    year,
+    month: cycleMonth,
+    year: cycleYear,
   })
 }
 
-export async function markBillPending(id: number): Promise<void> {
+export async function markBillPending(id: number, cycleMonth: number, cycleYear: number): Promise<void> {
   const now = new Date()
   const bill = await db.bills.get(id)
   if (!bill) return
 
-  // Undo installment increment if it was paid this month
+  // Undo installment increment if it was paid this cycle
   const updates: Partial<Bill> = {
     status: 'pending',
     paidAt: undefined,
@@ -93,10 +94,8 @@ export async function markBillPending(id: number): Promise<void> {
 
   await db.bills.update(id, updates)
 
-  // Remove the payment record for this month
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
-  const records = await db.paymentRecords.where({ billId: id, month, year }).toArray()
+  // Remove the payment record for this cycle
+  const records = await db.paymentRecords.where({ billId: id, month: cycleMonth, year: cycleYear }).toArray()
   if (records.length > 0) {
     await db.paymentRecords.delete(records[records.length - 1].id!)
   }

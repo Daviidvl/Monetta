@@ -10,6 +10,7 @@ import { CATEGORY_LABELS } from '../../types'
 import { formatCurrency } from '../../utils/format'
 import { dueDayLabel } from '../../utils/date'
 import { markBillPaid, markBillPending, deleteBill, addBill } from '../../database/queries'
+import { useAppStore } from '../../store/useAppStore'
 
 interface BillCardProps {
   bill: Bill
@@ -28,6 +29,7 @@ const statusLabel: Record<string, string> = {
 }
 
 export function BillCard({ bill }: BillCardProps) {
+  const { activeMonth, activeYear } = useAppStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -37,9 +39,9 @@ export function BillCard({ bill }: BillCardProps) {
     setActioning(true)
     try {
       if (bill.status === 'paid') {
-        await markBillPending(bill.id!)
+        await markBillPending(bill.id!, activeMonth, activeYear)
       } else {
-        await markBillPaid(bill.id!)
+        await markBillPaid(bill.id!, activeMonth, activeYear)
       }
     } finally {
       setActioning(false)

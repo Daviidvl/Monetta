@@ -29,15 +29,25 @@ function ThemeSync() {
 }
 
 function MonthlyResetGuard() {
-  const { lastResetKey, setLastResetKey, hasOnboarded } = useAppStore()
+  const { lastResetKey, setLastResetKey, hasOnboarded, activeMonth, activeYear, setActiveMonth } = useAppStore()
 
   useEffect(() => {
     if (!hasOnboarded) return
     const now = new Date()
-    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const currentMonth = now.getMonth() + 1
+    const currentYear = now.getFullYear()
+    const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+
     if (lastResetKey !== currentKey) {
-      resetMonthlyBills(now.getMonth() + 1, now.getFullYear())
+      resetMonthlyBills(currentMonth, currentYear)
         .then(() => setLastResetKey(currentKey))
+    }
+
+    // activeMonth/activeYear never trails the real calendar — but it may run
+    // ahead if the user already closed the cycle early, so only correct backward drift.
+    const activeKey = `${activeYear}-${String(activeMonth).padStart(2, '0')}`
+    if (activeKey < currentKey) {
+      setActiveMonth(currentMonth, currentYear)
     }
   }, [hasOnboarded])
 
