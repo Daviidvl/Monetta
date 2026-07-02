@@ -33,6 +33,12 @@ const MONTH_NAMES = [
 
 const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
 
+// A finished installment plan (e.g. 10/10) has nothing left to track — it
+// should drop out of the active bill views but still shows up in Pagas/Histórico.
+function isFinishedInstallment(bill: Bill): boolean {
+  return bill.isInstallment && (bill.installmentPaid ?? 0) >= (bill.installmentTotal ?? 1)
+}
+
 // ─── Paid bills grouped by month ─────────────────────────────────────────────
 function PaidByMonth({ bills }: { bills: Bill[] }) {
   const grouped = useMemo(() => {
@@ -160,6 +166,10 @@ export function BillsPage() {
   const bills = useBills()
   useProfile()
 
+  // Finished installments (e.g. 10/10) are done — hide them from the active
+  // bill views entirely, they only matter for Pagas/Histórico from here on.
+  const activeBills = useMemo(() => bills.filter(b => !isFinishedInstallment(b)), [bills])
+
   const { activeMonth, activeYear, setActiveMonth } = useAppStore()
   const closingRef = useRef(false)
 
@@ -167,13 +177,13 @@ export function BillsPage() {
   // recurring/unfinished-installment bills reset to pending under next month's
   // cycle, so "Contas" always shows a fresh, clearly-labeled month.
   useEffect(() => {
-    if (bills.length === 0 || closingRef.current) return
-    if (!bills.every(b => b.status === 'paid')) return
+    if (activeBills.length === 0 || closingRef.current) return
+    if (!activeBills.every(b => b.status === 'paid')) return
 
-    // Nothing would actually reset (e.g. only one-off bills or fully-paid
-    // installments) — advancing the cycle would be a no-op that just keeps
-    // incrementing the month label every time this page mounts. Skip it.
-    const hasResettableBills = bills.some(b =>
+    // Nothing would actually reset (e.g. only one-off bills) — advancing the
+    // cycle would be a no-op that just keeps incrementing the month label
+    // every time this page mounts. Skip it.
+    const hasResettableBills = activeBills.some(b =>
       b.isRecurring || (b.isInstallment && (b.installmentPaid ?? 0) < (b.installmentTotal ?? 1)),
     )
     if (!hasResettableBills) return
@@ -187,7 +197,7 @@ export function BillsPage() {
       setJustClosed(MONTH_NAMES[nextMonth - 1])
       closingRef.current = false
     })
-  }, [bills, activeMonth, activeYear, setActiveMonth])
+  }, [activeBills, activeMonth, activeYear, setActiveMonth])
 
   useEffect(() => {
     if (!justClosed) return
@@ -196,7 +206,7 @@ export function BillsPage() {
   }, [justClosed])
 
   const filtered = useMemo(() => {
-    let list = [...bills]
+    let list = [...activeBills]
 
     if (activeTab === 'pending')      list = list.filter(b => b.status !== 'paid')
     if (activeTab === 'paid')         list = list.filter(b => b.status === 'paid')
@@ -216,10 +226,10 @@ export function BillsPage() {
       if (pDiff !== 0) return pDiff
       return a.dueDay - b.dueDay
     })
-  }, [bills, activeTab, search])
+  }, [activeBills, activeTab, search])
 
-  const totalPending = bills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.amount, 0)
-  const totalPaid    = bills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
+  const totalPending = activeBills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.amount, 0)
+  const totalPaid    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
   const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
 
   return (
