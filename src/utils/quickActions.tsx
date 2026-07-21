@@ -1,8 +1,8 @@
-import { Receipt, Wallet, Target, TrendingUp } from 'lucide-react'
+import { Receipt, Wallet, Target, TrendingUp, type LucideIcon } from 'lucide-react'
 
 export interface QuickAction {
   label: string
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
+  icon: LucideIcon
   to: string
 }
 
