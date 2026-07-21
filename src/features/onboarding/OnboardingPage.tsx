@@ -68,20 +68,25 @@ interface StepProps {
 function Step({ children, title, subtitle }: StepProps) {
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -24 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col gap-6"
     >
-      <div>
-        <h2 className="text-2xl font-semibold text-text-primary tracking-tight">{title}</h2>
+      <motion.div layout="position">
+        <h2 className="text-2xl font-semibold text-text-primary font-heading tracking-heading">{title}</h2>
         {subtitle && <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>}
-      </div>
+      </motion.div>
       {children}
     </motion.div>
   )
 }
+
+// A blank, non-empty hint keeps the reserved height even when there's
+// nothing to show yet — avoids the field jumping as the user types.
+const HINT_PLACEHOLDER = ' '
 
 export function OnboardingPage() {
   const [step, setStep] = useState(0)
@@ -148,7 +153,7 @@ export function OnboardingPage() {
         <div className="w-8 h-8 rounded-xl bg-accent-500 flex items-center justify-center">
           <TrendingUp size={16} className="text-white" />
         </div>
-        <span className="text-base font-semibold text-text-primary">Monetta</span>
+        <span className="text-base font-semibold text-text-primary font-heading">Monetta</span>
       </div>
 
       {/* Progress */}
@@ -157,7 +162,7 @@ export function OnboardingPage() {
           <motion.div
             key={i}
             className="h-1 rounded-full flex-1"
-            animate={{ backgroundColor: i <= step ? '#635BFF' : 'var(--surface-200)' }}
+            animate={{ backgroundColor: i <= step ? '#7A2FFF' : 'var(--surface-200)' }}
             transition={{ duration: 0.3 }}
           />
         ))}
@@ -197,81 +202,91 @@ export function OnboardingPage() {
                 ))}
               </div>
 
-              {frequency === 'biweekly' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="1º pagamento"
-                    placeholder="Ex: 800"
-                    type="number"
-                    value={income}
-                    onChange={e => setIncome(e.target.value)}
-                    prefix={<span className="text-xs font-medium">R$</span>}
-                    autoFocus
-                  />
-                  <Input
-                    label="2º pagamento"
-                    placeholder={income ? `Ex: ${income}` : 'Se diferente'}
-                    type="number"
-                    value={income2}
-                    onChange={e => setIncome2(e.target.value)}
-                    prefix={<span className="text-xs font-medium">R$</span>}
-                    onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
-                    hint={
-                      parseNumber(income) > 0
-                        ? `Total: ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
-                        : undefined
-                    }
-                  />
-                </div>
-              ) : frequency === 'daily' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="Valor por dia"
-                    placeholder="Ex: 120"
-                    type="number"
-                    value={income}
-                    onChange={e => setIncome(e.target.value)}
-                    prefix={<span className="text-xs font-medium">R$</span>}
-                    autoFocus
-                    hint={
-                      parseNumber(income) > 0
-                        ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
-                        : undefined
-                    }
-                  />
-                  <Input
-                    label="Dias/mês"
-                    placeholder="22"
-                    type="number"
-                    value={workDays}
-                    onChange={e => setWorkDays(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
-                    hint="Dias trabalhados"
-                  />
-                </div>
-              ) : (
-                <Input
-                  label={
-                    frequency === 'weekly'   ? 'Quanto você recebe por semana?' :
-                    frequency === 'variable' ? 'Qual sua renda média mensal?' :
-                    'Quanto você recebe por mês?'
-                  }
-                  placeholder="Ex: 3500"
-                  type="number"
-                  value={income}
-                  onChange={e => setIncome(e.target.value)}
-                  prefix={<span className="text-xs font-medium">R$</span>}
-                  autoFocus
-                  onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
-                  hint={
-                    frequency === 'weekly' && parseNumber(income) > 0
-                      ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
-                      : frequency === 'variable'
-                      ? 'Sem problema — dá pra ajustar isso quando quiser no Dashboard.'
-                      : undefined
-                  }
-                />
-              )}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={frequency}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {frequency === 'biweekly' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        label="1º pagamento"
+                        placeholder="Ex: 800"
+                        type="number"
+                        value={income}
+                        onChange={e => setIncome(e.target.value)}
+                        prefix={<span className="text-xs font-medium">R$</span>}
+                        autoFocus
+                      />
+                      <Input
+                        label="2º pagamento"
+                        placeholder={income ? `Ex: ${income}` : 'Se diferente'}
+                        type="number"
+                        value={income2}
+                        onChange={e => setIncome2(e.target.value)}
+                        prefix={<span className="text-xs font-medium">R$</span>}
+                        onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                        hint={
+                          parseNumber(income) > 0
+                            ? `Total: ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
+                            : HINT_PLACEHOLDER
+                        }
+                      />
+                    </div>
+                  ) : frequency === 'daily' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        label="Valor por dia"
+                        placeholder="Ex: 120"
+                        type="number"
+                        value={income}
+                        onChange={e => setIncome(e.target.value)}
+                        prefix={<span className="text-xs font-medium">R$</span>}
+                        autoFocus
+                        hint={
+                          parseNumber(income) > 0
+                            ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês`
+                            : HINT_PLACEHOLDER
+                        }
+                      />
+                      <Input
+                        label="Dias/mês"
+                        placeholder="22"
+                        type="number"
+                        value={workDays}
+                        onChange={e => setWorkDays(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                        hint="Dias trabalhados"
+                      />
+                    </div>
+                  ) : (
+                    <Input
+                      label={
+                        frequency === 'weekly'   ? 'Quanto você recebe por semana?' :
+                        frequency === 'variable' ? 'Qual sua renda média mensal?' :
+                        'Quanto você recebe por mês?'
+                      }
+                      placeholder="Ex: 3500"
+                      type="number"
+                      value={income}
+                      onChange={e => setIncome(e.target.value)}
+                      prefix={<span className="text-xs font-medium">R$</span>}
+                      autoFocus
+                      onKeyDown={e => e.key === 'Enter' && canProceed && setStep(2)}
+                      hint={
+                        frequency === 'weekly'
+                          ? (parseNumber(income) > 0 ? `≈ ${formatCurrency(toMonthlyIncome(buildIncomeInput()))}/mês` : HINT_PLACEHOLDER)
+                          : frequency === 'variable'
+                          ? 'Sem problema — dá pra ajustar isso quando quiser no Dashboard.'
+                          : undefined
+                      }
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </Step>
           )}
           {step === 2 && (

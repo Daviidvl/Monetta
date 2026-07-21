@@ -29,11 +29,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full h-10 rounded-xl border bg-surface-0 text-sm text-text-primary',
-              'placeholder:text-text-muted transition-colors duration-150',
-              'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none',
+              'w-full h-12 rounded-[14px] border bg-surface-0 text-sm text-text-primary',
+              'placeholder:text-text-muted transition-all duration-150',
+              'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)]',
               'disabled:opacity-50 disabled:cursor-not-allowed',
-              error && 'border-status-danger focus:border-status-danger',
+              error && 'border-status-danger focus:border-status-danger focus:shadow-[0_0_0_4px_rgba(255,91,106,.15)]',
               prefix ? 'pl-9' : 'pl-3',
               suffix ? 'pr-9' : 'pr-3',
               className,
@@ -75,9 +75,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full h-10 px-3 rounded-xl border bg-surface-0 text-sm text-text-primary',
-            'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none',
-            'transition-colors duration-150 appearance-none cursor-pointer',
+            'w-full h-12 px-3 rounded-[14px] border bg-surface-0 text-sm text-text-primary',
+            'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)]',
+            'transition-all duration-150 appearance-none cursor-pointer',
             error && 'border-status-danger',
             className,
           )}
@@ -115,9 +115,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full px-3 py-2.5 rounded-xl border bg-surface-0 text-sm text-text-primary',
-            'placeholder:text-text-muted resize-none transition-colors duration-150',
-            'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none',
+            'w-full px-3 py-2.5 rounded-[14px] border bg-surface-0 text-sm text-text-primary',
+            'placeholder:text-text-muted resize-none transition-all duration-150',
+            'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)]',
             error && 'border-status-danger',
             className,
           )}

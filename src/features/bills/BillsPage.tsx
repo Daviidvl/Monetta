@@ -200,7 +200,7 @@ export function BillsPage() {
 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [search, setSearch]       = useState('')
-  const [addOpen, setAddOpen]     = useState(false)
+  const [addOpen, setAddOpen]     = useState(searchParams.get('add') === '1')
 
   const bills = useBills()
   useProfile()
@@ -301,7 +301,7 @@ export function BillsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar conta..."
-              className="w-full h-9 pl-8 pr-3 rounded-xl border border-border-base bg-surface-0 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-500 focus:outline-none transition-colors"
+              className="w-full h-12 pl-8 pr-3 rounded-[14px] border border-border-base bg-surface-0 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-500 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)] transition-all"
             />
           </div>
 

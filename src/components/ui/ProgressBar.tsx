@@ -12,7 +12,7 @@ interface ProgressBarProps {
 
 const sizeMap = { sm: 'h-1', md: 'h-1.5', lg: 'h-2' }
 
-export function ProgressBar({ value, max = 100, color = '#635BFF', size = 'md', className, animated = true }: ProgressBarProps) {
+export function ProgressBar({ value, max = 100, color = '#7A2FFF', size = 'md', className, animated = true }: ProgressBarProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
 
   return (

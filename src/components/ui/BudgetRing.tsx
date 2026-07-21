@@ -1,5 +1,12 @@
 import { motion } from 'framer-motion'
 
+const COLORS = {
+  danger: '#FF5B6A',
+  warning: '#FFA534',
+  success: '#46D889',
+  accent: '#7A2FFF',
+}
+
 interface BudgetRingProps {
   income: number
   expenses: number
@@ -20,7 +27,7 @@ export function BudgetRing({ income, expenses, invested }: BudgetRingProps) {
   const expOffset = 0
   const invOffset = -((usedPct / 100) * circ)
 
-  const color = usedPct > 90 ? '#EF4444' : usedPct > 70 ? '#F59E0B' : '#10B981'
+  const color = usedPct > 90 ? COLORS.danger : usedPct > 70 ? COLORS.warning : COLORS.success
 
   return (
     <div className="flex flex-col items-center">
@@ -49,7 +56,7 @@ export function BudgetRing({ income, expenses, invested }: BudgetRingProps) {
             <motion.circle
               cx="60" cy="60" r={r}
               fill="none"
-              stroke="#635BFF"
+              stroke={COLORS.accent}
               strokeWidth="10"
               strokeDasharray={`${invArc} ${circ}`}
               strokeDashoffset={invOffset}

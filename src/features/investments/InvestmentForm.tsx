@@ -238,7 +238,7 @@ export function InvestmentForm({ investment, onClose }: InvestmentFormProps) {
                 onChange={e => handleCoinSearchChange(e.target.value)}
                 onFocus={() => coinResults.length > 0 && setShowDropdown(true)}
                 placeholder="Buscar Bitcoin, Cardano, Ethereum..."
-                className="w-full h-10 pl-8 pr-3 rounded-xl border border-border-base bg-surface-0 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-500 focus:outline-none transition-colors"
+                className="w-full h-12 pl-8 pr-3 rounded-[14px] border border-border-base bg-surface-0 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-500 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)] transition-all"
               />
               {searchingCoin && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-accent-500 border-t-transparent animate-spin" />
@@ -275,7 +275,7 @@ export function InvestmentForm({ investment, onClose }: InvestmentFormProps) {
               value={datetime}
               max={toDatetimeLocal(new Date())}
               onChange={e => handleDatetimeChange(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl border border-border-base bg-surface-0 text-sm text-text-primary focus:border-accent-500 focus:outline-none transition-colors"
+              className="w-full h-12 px-3 rounded-[14px] border border-border-base bg-surface-0 text-sm text-text-primary focus:border-accent-500 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)] transition-all"
             />
 
             {/* Price indicator */}

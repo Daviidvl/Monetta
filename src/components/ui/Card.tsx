@@ -9,9 +9,9 @@ export function Card({ hoverable, padded = true, className, children, ...props }
   return (
     <div
       className={cn(
-        'bg-surface-0 rounded-2xl shadow-card',
+        'bg-surface-0 rounded-3xl shadow-card',
         hoverable && 'transition-shadow duration-200 cursor-pointer hover:shadow-card-hover',
-        padded && 'p-4',
+        padded && 'p-6',
         className,
       )}
       {...props}

@@ -17,7 +17,7 @@ export function FloatingNav() {
       className="fixed bottom-5 left-0 right-0 z-40 flex justify-center pointer-events-none lg:hidden"
       aria-label="Navegação principal"
     >
-      <div className="pointer-events-auto flex items-center gap-0.5 bg-surface-0/95 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-elevated px-1.5 py-1.5">
+      <div className="relative pointer-events-auto flex items-center gap-0.5 bg-surface-0/95 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-elevated px-1.5 py-1.5">
         {navItems.map(({ to, label, icon: Icon, exact }) => (
           <NavLink key={to} to={to} end={exact} className="outline-none">
             {({ isActive }) => (

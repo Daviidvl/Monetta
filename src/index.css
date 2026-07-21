@@ -5,37 +5,37 @@
 /* ─── CSS Custom Properties — Light Theme ─── */
 :root {
   --surface-0:   #FFFFFF;
-  --surface-50:  #F8FAFC;
-  --surface-100: #F1F5F9;
-  --surface-200: #E2E8F0;
-  --surface-300: #CBD5E1;
+  --surface-50:  #F8F8FC;
+  --surface-100: #F3F4F8;
+  --surface-200: #E7E9F0;
+  --surface-300: #D8C2FF;
 
-  --text-primary:   #0F172A;
-  --text-secondary: #475569;
-  --text-muted:     #94A3B8;
+  --text-primary:   #111827;
+  --text-secondary: #6B7280;
+  --text-muted:     #A3A8B8;
   --text-inverse:   #FFFFFF;
 
-  --border-subtle: rgba(15, 23, 42, 0.06);
-  --border-base:   rgba(15, 23, 42, 0.10);
-  --border-strong: rgba(15, 23, 42, 0.18);
+  --border-subtle: rgba(17, 24, 39, 0.05);
+  --border-base:   #E7E9F0;
+  --border-strong: rgba(17, 24, 39, 0.14);
 }
 
 /* ─── CSS Custom Properties — Dark Theme ─── */
 .dark {
-  --surface-0:   #0C0E14;
-  --surface-50:  #111318;
-  --surface-100: #181B23;
-  --surface-200: #1F2230;
-  --surface-300: #272B3A;
+  --surface-0:   #151022;
+  --surface-50:  #1B1530;
+  --surface-100: #241C3D;
+  --surface-200: #332954;
+  --surface-300: #463A6E;
 
-  --text-primary:   #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-muted:     #64748B;
-  --text-inverse:   #0F172A;
+  --text-primary:   #F3ECFF;
+  --text-secondary: #B8B4CC;
+  --text-muted:     #7A7690;
+  --text-inverse:   #151022;
 
-  --border-subtle: rgba(241, 245, 249, 0.05);
-  --border-base:   rgba(241, 245, 249, 0.09);
-  --border-strong: rgba(241, 245, 249, 0.14);
+  --border-subtle: rgba(243, 236, 255, 0.06);
+  --border-base:   rgba(243, 236, 255, 0.10);
+  --border-strong: rgba(243, 236, 255, 0.16);
 }
 
 /* ─── Base ─── */
@@ -78,13 +78,13 @@ body {
 
 /* ─── Selection ─── */
 ::selection {
-  background-color: rgba(99, 91, 255, 0.15);
+  background-color: rgba(122, 47, 255, 0.15);
   color: var(--text-primary);
 }
 
 /* ─── Focus visible ─── */
 :focus-visible {
-  outline: 2px solid #635BFF;
+  outline: 2px solid #7A2FFF;
   outline-offset: 2px;
   border-radius: 4px;
 }

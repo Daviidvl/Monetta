@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { ProgressBar } from '../../components/ui/ProgressBar'
+import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Modal } from '../../components/ui/Modal'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -25,6 +26,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, INCOME_FREQUENCY_LABELS, type IncomeEntry } from '../../types'
 import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
 import { calcSavingPlan, formatMonths } from '../../utils/goals'
+import { QUICK_ACTIONS } from '../../utils/quickActions'
 
 const stagger = {
   hidden: {},
@@ -103,7 +105,7 @@ export function DashboardPage() {
             <p className="text-xs text-text-muted mb-0.5">
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
-            <h1 className="text-xl font-semibold text-text-primary tracking-tight">
+            <h1 className="text-xl font-semibold text-text-primary font-heading tracking-heading">
               {profile ? `Olá, ${profile.name.split(' ')[0]}` : 'Dashboard'}
             </h1>
           </div>
@@ -117,11 +119,12 @@ export function DashboardPage() {
 
         {/* Main balance card */}
         <motion.div variants={fadeUp}>
-          <Card className="bg-accent-500 border-0 shadow-lg shadow-accent-500/25 p-5">
+          <Card className="bg-gradient-hero border-0 shadow-glow p-5">
             <p className="text-xs text-white/70 mb-1">Disponível este mês</p>
-            <p className="text-3xl font-bold text-white tracking-tight">
-              {formatCurrency(remaining)}
-            </p>
+            <AnimatedNumber
+              value={remaining}
+              className="block text-3xl font-bold text-white font-heading tracking-heading"
+            />
 
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/70">
               <span>Receita: {formatCurrency(totalIncome)}</span>
@@ -140,7 +143,7 @@ export function DashboardPage() {
                     Investido: {formatCurrency(totalCurrentInvested)}
                     {hasCrypto && portfolioPnl !== 0 && (
                       <span className={`flex items-center gap-0.5 font-medium ${
-                        portfolioPnl >= 0 ? 'text-emerald-300' : 'text-red-300'
+                        portfolioPnl >= 0 ? 'text-status-success' : 'text-status-danger'
                       }`}>
                         {portfolioPnl >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                         {portfolioPnl >= 0 ? '+' : ''}{formatCurrency(portfolioPnl)}
@@ -168,6 +171,42 @@ export function DashboardPage() {
               </div>
             )}
           </Card>
+        </motion.div>
+
+        {/* Quick actions */}
+        <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2">
+          {QUICK_ACTIONS.map(({ label, icon: Icon, to }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <span className="w-12 h-12 rounded-2xl bg-accent-500/10 flex items-center justify-center text-accent-500 transition-colors group-hover:bg-accent-500/20">
+                <Icon size={20} strokeWidth={1.75} />
+              </span>
+              <span className="text-[11px] font-medium text-text-secondary text-center leading-tight">
+                {label}
+              </span>
+            </Link>
+          ))}
+        </motion.div>
+
+        {/* Income vs expenses */}
+        <motion.div variants={fadeUp} className="grid grid-cols-2 gap-3">
+          <div className="rounded-3xl bg-status-success/8 border border-status-success/20 p-4">
+            <div className="w-8 h-8 rounded-xl bg-status-success/15 flex items-center justify-center text-status-success mb-2">
+              <TrendingUp size={16} />
+            </div>
+            <p className="text-xs text-text-muted">Receita</p>
+            <p className="text-lg font-semibold text-text-primary">{formatCurrency(totalIncome)}</p>
+          </div>
+          <div className="rounded-3xl bg-status-danger/8 border border-status-danger/20 p-4">
+            <div className="w-8 h-8 rounded-xl bg-status-danger/15 flex items-center justify-center text-status-danger mb-2">
+              <TrendingDown size={16} />
+            </div>
+            <p className="text-xs text-text-muted">Despesas</p>
+            <p className="text-lg font-semibold text-text-primary">{formatCurrency(totalExpenses + totalDebitExpenses)}</p>
+          </div>
         </motion.div>
 
         {/* Free cash suggestion */}

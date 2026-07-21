@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Target, Pencil, Trash2, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -53,8 +54,9 @@ function SavingHint({ plan }: { plan: SavingPlan }) {
 export function GoalsPage() {
   const goals = useGoals()
   const { remaining } = useDashboardData()
+  const [searchParams] = useSearchParams()
 
-  const [addOpen, setAddOpen]         = useState(false)
+  const [addOpen, setAddOpen]         = useState(searchParams.get('add') === '1')
   const [editTarget, setEditTarget]   = useState<Goal | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Goal | null>(null)
 
@@ -157,7 +159,7 @@ export function GoalsPage() {
                         <p className="text-xl font-bold text-text-primary">{formatCurrency(goal.currentAmount)}</p>
                         <p className="text-xs text-text-muted">de {formatCurrency(goal.targetAmount)}</p>
                       </div>
-                      <p className="text-2xl font-bold" style={{ color: isComplete ? '#10B981' : goal.color }}>
+                      <p className="text-2xl font-bold" style={{ color: isComplete ? '#46D889' : goal.color }}>
                         {Math.round(pct)}%
                       </p>
                     </div>

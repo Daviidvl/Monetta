@@ -216,12 +216,12 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 }
 
 export const GOAL_COLORS = [
-  '#635BFF',
-  '#10B981',
-  '#F59E0B',
-  '#EF4444',
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#14B8A6',
+  '#7A2FFF',
+  '#46D889',
+  '#FFA534',
+  '#FF5B6A',
+  '#36C5F4',
+  '#9255FF',
+  '#FFD54A',
+  '#44E4D3',
 ]

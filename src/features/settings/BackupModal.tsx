@@ -177,9 +177,10 @@ export function BackupModal({ open, onClose }: BackupModalProps) {
                 Cancelar
               </Button>
               <Button
+                variant="danger"
                 size="sm"
                 fullWidth
-                className="bg-status-danger hover:bg-status-danger/90 text-white border-0"
+                className="bg-status-danger text-white hover:bg-status-danger/90"
                 onClick={handleClear}
                 loading={clearing}
               >

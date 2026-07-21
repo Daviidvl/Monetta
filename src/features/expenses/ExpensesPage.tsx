@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Wallet, UtensilsCrossed, Car, Heart,
@@ -19,11 +20,11 @@ import { EXPENSE_CATEGORY_LABELS } from '../../types'
 
 // ─── Category config ──────────────────────────────────────────────────────────
 const CATEGORIES: { id: ExpenseCategory; icon: React.ReactNode; color: string }[] = [
-  { id: 'food',          icon: <UtensilsCrossed size={18} />, color: 'text-orange-500 bg-orange-500/12' },
-  { id: 'transport',     icon: <Car size={18} />,             color: 'text-blue-500 bg-blue-500/12' },
-  { id: 'health',        icon: <Heart size={18} />,           color: 'text-red-400 bg-red-400/12' },
-  { id: 'shopping',      icon: <ShoppingBag size={18} />,     color: 'text-purple-500 bg-purple-500/12' },
-  { id: 'entertainment', icon: <Clapperboard size={18} />,    color: 'text-green-500 bg-green-500/12' },
+  { id: 'food',          icon: <UtensilsCrossed size={18} />, color: 'text-[#FFA534] bg-[#FFA534]/12' },
+  { id: 'transport',     icon: <Car size={18} />,             color: 'text-[#36C5F4] bg-[#36C5F4]/12' },
+  { id: 'health',        icon: <Heart size={18} />,           color: 'text-[#FF5B6A] bg-[#FF5B6A]/12' },
+  { id: 'shopping',      icon: <ShoppingBag size={18} />,     color: 'text-accent-500 bg-accent-500/12' },
+  { id: 'entertainment', icon: <Clapperboard size={18} />,    color: 'text-[#46D889] bg-[#46D889]/12' },
   { id: 'other',         icon: <MoreHorizontal size={18} />,  color: 'text-text-muted bg-surface-100' },
 ]
 
@@ -104,17 +105,17 @@ function ExpenseForm({ onClose }: { onClose: () => void }) {
               key={cat.id}
               type="button"
               onClick={() => setCategory(cat.id)}
-              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
                 category === cat.id
-                  ? 'border-accent-500 bg-accent-500/8'
+                  ? 'border-accent-500 bg-accent-500/5'
                   : 'border-transparent bg-surface-50 hover:bg-surface-100'
               }`}
             >
-              <span className={category === cat.id ? 'text-accent-500' : 'text-text-muted'}>
+              <span className={`w-10 h-10 rounded-2xl flex items-center justify-center ${cat.color}`}>
                 {cat.icon}
               </span>
               <span className={`text-[11px] font-medium text-center leading-tight ${
-                category === cat.id ? 'text-accent-500' : 'text-text-muted'
+                category === cat.id ? 'text-accent-500' : 'text-text-secondary'
               }`}>
                 {EXPENSE_CATEGORY_LABELS[cat.id]}
               </span>
@@ -140,7 +141,8 @@ function ExpenseForm({ onClose }: { onClose: () => void }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 export function ExpensesPage() {
   const expenses = useMonthlyDebitExpenses()
-  const [addOpen, setAddOpen]           = useState(false)
+  const [searchParams] = useSearchParams()
+  const [addOpen, setAddOpen]           = useState(searchParams.get('add') === '1')
   const [deleteTarget, setDeleteTarget] = useState<DebitExpense | null>(null)
 
   const totalThisMonth = expenses.reduce((s, e) => s + e.amount, 0)
@@ -158,7 +160,7 @@ export function ExpensesPage() {
 
       {/* Summary card */}
       {totalThisMonth > 0 && (
-        <div className="mb-5 rounded-2xl bg-status-danger p-5 shadow-lg shadow-status-danger/20">
+        <div className="mb-5 rounded-3xl bg-status-danger p-5 shadow-elevated">
           <p className="text-xs text-white/70 mb-1">Gasto no débito em {monthName}</p>
           <p className="text-3xl font-bold text-white tracking-tight">{formatCurrency(totalThisMonth)}</p>
         </div>
@@ -236,7 +238,7 @@ export function ExpensesPage() {
       {/* FAB */}
       <button
         onClick={() => setAddOpen(true)}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-accent-500 text-white shadow-xl shadow-accent-500/30 flex items-center justify-center hover:bg-accent-500/90 active:scale-95 transition-all z-30"
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-primary text-white shadow-glow flex items-center justify-center hover:-translate-y-0.5 hover:brightness-[1.08] active:scale-95 transition-all z-30"
       >
         <Plus size={24} />
       </button>

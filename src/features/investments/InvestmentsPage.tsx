@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, TrendingUp, TrendingDown, Pencil, Trash2, RefreshCw, ArrowDownToLine, History, Undo2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -18,13 +19,13 @@ import type { Investment, Withdrawal } from '../../types'
 import { formatDate } from '../../utils/date'
 
 const typeColors: Record<string, string> = {
-  savings:     '#10B981',
-  treasury:    '#3B82F6',
-  cdb:         '#8B5CF6',
-  stocks:      '#F59E0B',
-  crypto:      '#F7931A',
-  real_estate: '#14B8A6',
-  other:       '#94A3B8',
+  savings:     '#46D889',
+  treasury:    '#36C5F4',
+  cdb:         '#7A2FFF',
+  stocks:      '#FFA534',
+  crypto:      '#FFD54A',
+  real_estate: '#44E4D3',
+  other:       '#A3A8B8',
 }
 
 function PnlBadge({ pnl, pct }: { pnl: number; pct: number }) {
@@ -42,7 +43,8 @@ function PnlBadge({ pnl, pct }: { pnl: number; pct: number }) {
 export function InvestmentsPage() {
   const investments = useInvestments()
   const withdrawals = useWithdrawals()
-  const [addOpen, setAddOpen]             = useState(false)
+  const [searchParams] = useSearchParams()
+  const [addOpen, setAddOpen]             = useState(searchParams.get('add') === '1')
   const [editTarget, setEditTarget]       = useState<Investment | null>(null)
   const [deleteTarget, setDeleteTarget]   = useState<Investment | null>(null)
   const [withdrawTarget, setWithdrawTarget] = useState<Investment | null>(null)

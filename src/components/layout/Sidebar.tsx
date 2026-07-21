@@ -8,6 +8,7 @@ import {
   Moon,
   Sun,
   Download,
+  Plus,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { useAppStore } from '../../store/useAppStore'
@@ -22,9 +23,10 @@ const navItems = [
 
 interface SidebarProps {
   onBackup?: () => void
+  onQuickAdd?: () => void
 }
 
-export function Sidebar({ onBackup }: SidebarProps) {
+export function Sidebar({ onBackup, onQuickAdd }: SidebarProps) {
   const { theme, toggleTheme } = useAppStore()
 
   return (
@@ -37,9 +39,22 @@ export function Sidebar({ onBackup }: SidebarProps) {
               <path d="M4 13L7.5 6.5L10 11L12.5 8L16 13" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <span className="text-sm font-semibold text-text-primary tracking-tight">Monetta</span>
+          <span className="text-sm font-semibold text-text-primary font-heading tracking-tight">Monetta</span>
         </div>
       </div>
+
+      {/* Quick add */}
+      {onQuickAdd && (
+        <div className="px-3 mb-3">
+          <button
+            onClick={onQuickAdd}
+            className="flex items-center justify-center gap-2 h-10 w-full rounded-xl bg-gradient-primary text-white text-sm font-medium hover:-translate-y-0.5 hover:brightness-[1.08] hover:shadow-glow transition-all"
+          >
+            <Plus size={16} />
+            Adicionar
+          </button>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 space-y-0.5">

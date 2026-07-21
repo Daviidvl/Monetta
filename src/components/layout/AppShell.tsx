@@ -3,14 +3,16 @@ import { Outlet } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { FloatingNav } from './FloatingNav'
 import { Sidebar } from './Sidebar'
+import { QuickAddMenu } from './QuickAddMenu'
 import { BackupModal } from '../../features/settings/BackupModal'
 
 export function AppShell() {
   const [backupOpen, setBackupOpen] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
 
   return (
     <div className="flex min-h-dvh bg-surface-50">
-      <Sidebar onBackup={() => setBackupOpen(true)} />
+      <Sidebar onBackup={() => setBackupOpen(true)} onQuickAdd={() => setQuickAddOpen(true)} />
 
       <main className="flex-1 min-w-0 flex flex-col">
         <motion.div
@@ -27,6 +29,7 @@ export function AppShell() {
 
       <FloatingNav />
       <BackupModal open={backupOpen} onClose={() => setBackupOpen(false)} />
+      <QuickAddMenu open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </div>
   )
 }
