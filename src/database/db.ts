@@ -1,15 +1,22 @@
 import Dexie, { type Table } from 'dexie'
-import type { Bill, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
+import type {
+  LegacyBill, LegacyDebitExpense, LegacyGoal, LegacyIncomeEntry,
+  LegacyInvestment, LegacyPaymentRecord, LegacyUserProfile, LegacyWithdrawal,
+} from './legacyTypes'
 
+// This Dexie/IndexedDB database is no longer the live data store (Supabase
+// is, since the multi-device login migration) — it's kept read-only, only
+// to let a first login pull in whatever was saved locally before that
+// migration. Table generics use the Legacy* (numeric-id) shapes on purpose.
 class MonettaDB extends Dexie {
-  userProfile!: Table<UserProfile>
-  bills!: Table<Bill>
-  investments!: Table<Investment>
-  goals!: Table<Goal>
-  paymentRecords!: Table<PaymentRecord>
-  incomes!: Table<IncomeEntry>
-  debitExpenses!: Table<DebitExpense>
-  withdrawals!: Table<Withdrawal>
+  userProfile!: Table<LegacyUserProfile>
+  bills!: Table<LegacyBill>
+  investments!: Table<LegacyInvestment>
+  goals!: Table<LegacyGoal>
+  paymentRecords!: Table<LegacyPaymentRecord>
+  incomes!: Table<LegacyIncomeEntry>
+  debitExpenses!: Table<LegacyDebitExpense>
+  withdrawals!: Table<LegacyWithdrawal>
 
   constructor() {
     super('MonettaDB')

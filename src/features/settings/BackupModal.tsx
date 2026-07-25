@@ -191,7 +191,7 @@ export function BackupModal({ open, onClose }: BackupModalProps) {
         )}
 
         <p className="text-xs text-text-muted pt-1">
-          Todos os dados ficam armazenados localmente no seu dispositivo.
+          Seus dados ficam salvos na sua conta e sincronizados entre dispositivos.
         </p>
       </div>
     </Modal>

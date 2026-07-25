@@ -52,17 +52,17 @@ Todo pagamento fica registrado. Você pode ver o quanto pagou em cada mês, nave
 
 ## Tecnologia
 
-Monetta é um PWA — pode ser instalado como app no celular e funciona sem internet. Nenhum dado sai do seu dispositivo.
+Monetta é um PWA — pode ser instalado como app no celular. Login com email/senha sincroniza os mesmos dados entre celular e computador.
 
 | Camada | Escolha |
 |---|---|
 | Interface | React 18 + TypeScript |
 | Estilo | Tailwind CSS + design tokens |
 | Animações | Framer Motion |
-| Dados | IndexedDB via Dexie (local, offline) |
+| Dados | Supabase (Postgres + Auth), cache/estado via TanStack Query |
 | Estado | Zustand |
 | Preços crypto | CoinGecko API (gratuita, sem autenticação) |
-| Deploy | GitHub Pages |
+| Deploy | Vercel (PWA + `/api` serverless) |
 
 ---
 

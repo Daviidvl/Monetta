@@ -1,9 +1,19 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { AppShell } from './components/layout/AppShell'
 import { OnboardingPage } from './features/onboarding/OnboardingPage'
+import { LoginPage } from './features/auth/LoginPage'
+import { MigrationOfferPage } from './features/migration/MigrationOfferPage'
 import { useAppStore } from './store/useAppStore'
-import { resetMonthlyBills } from './database/queries'
+import { useAuthStore } from './store/useAuthStore'
+import { queryClient } from './lib/queryClient'
+import { queryKeys } from './database/queryKeys'
+import { getProfile, resetMonthlyBills } from './database/queries'
+import { hasLocalDexieData } from './services/dataMigration'
+import { AuthGuard } from './components/guards/AuthGuard'
+import { WhatsappSyncGuard } from './components/guards/WhatsappSyncGuard'
+import { ToastViewport } from './components/ui/Toast'
 
 const DashboardPage   = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const BillsPage       = lazy(() => import('./features/bills/BillsPage').then(m => ({ default: m.BillsPage })))
@@ -20,6 +30,14 @@ function PageLoader() {
   )
 }
 
+function FullPageLoader() {
+  return (
+    <div className="min-h-dvh flex items-center justify-center bg-surface-0">
+      <div className="w-6 h-6 rounded-full border-2 border-accent-500 border-t-transparent animate-spin" />
+    </div>
+  )
+}
+
 function ThemeSync() {
   const theme = useAppStore(s => s.theme)
   useEffect(() => {
@@ -29,10 +47,9 @@ function ThemeSync() {
 }
 
 function MonthlyResetGuard() {
-  const { lastResetKey, setLastResetKey, hasOnboarded, activeMonth, activeYear, setActiveMonth } = useAppStore()
+  const { lastResetKey, setLastResetKey, activeMonth, activeYear, setActiveMonth } = useAppStore()
 
   useEffect(() => {
-    if (!hasOnboarded) return
     const now = new Date()
     const currentMonth = now.getMonth() + 1
     const currentYear = now.getFullYear()
@@ -49,35 +66,81 @@ function MonthlyResetGuard() {
     if (activeMonth !== currentMonth || activeYear !== currentYear) {
       setActiveMonth(currentMonth, currentYear)
     }
-  }, [hasOnboarded])
+  }, [])
 
   return null
 }
 
-export default function App() {
-  const hasOnboarded = useAppStore(s => s.hasOnboarded)
+// Gates, in order: auth session -> one-time local->cloud migration offer ->
+// profile exists (onboarding done) -> the actual app. Each stage reuses the
+// same "guard component decides, App just branches on state" pattern.
+function AuthenticatedApp() {
+  const [migrationChecked, setMigrationChecked] = useState(false)
+  const [needsMigrationOffer, setNeedsMigrationOffer] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    hasLocalDexieData().then(has => {
+      if (cancelled) return
+      setNeedsMigrationOffer(has)
+      setMigrationChecked(true)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const profileQuery = useQuery({
+    queryKey: queryKeys.profile,
+    queryFn: getProfile,
+    enabled: migrationChecked && !needsMigrationOffer,
+  })
+
+  if (!migrationChecked) return <FullPageLoader />
+  if (needsMigrationOffer) {
+    return <MigrationOfferPage onDone={() => setNeedsMigrationOffer(false)} />
+  }
+  if (profileQuery.isLoading) return <FullPageLoader />
+
+  if (!profileQuery.data) {
+    return (
+      <Routes>
+        <Route path="*" element={<OnboardingPage />} />
+      </Routes>
+    )
+  }
 
   return (
-    <HashRouter>
-      <ThemeSync />
+    <>
       <MonthlyResetGuard />
-      {!hasOnboarded ? (
-        <Routes>
-          <Route path="*" element={<OnboardingPage />} />
-        </Routes>
-      ) : (
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
-            <Route path="contas" element={<Suspense fallback={<PageLoader />}><BillsPage /></Suspense>} />
-            <Route path="gastos" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />
-            <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
-            <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
-            <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      )}
-    </HashRouter>
+      <WhatsappSyncGuard />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
+          <Route path="contas" element={<Suspense fallback={<PageLoader />}><BillsPage /></Suspense>} />
+          <Route path="gastos" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />
+          <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
+          <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
+          <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </>
+  )
+}
+
+export default function App() {
+  const authStatus = useAuthStore(s => s.status)
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthGuard />
+        <ThemeSync />
+        <ToastViewport />
+
+        {authStatus === 'loading' && <FullPageLoader />}
+        {authStatus === 'anonymous' && <LoginPage />}
+        {authStatus === 'authenticated' && <AuthenticatedApp />}
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }

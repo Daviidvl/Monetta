@@ -8,7 +8,7 @@ import { Select } from '../../components/ui/Input'
 import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { saveProfile } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
-import { parseNumber, formatCurrency } from '../../utils/format'
+import { parseNumber } from '../../utils/format'
 import { toMonthlyIncome } from '../../utils/income'
 import { INCOME_FREQUENCY_LABELS, type IncomeFrequency } from '../../types'
 

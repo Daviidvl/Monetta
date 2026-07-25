@@ -19,7 +19,7 @@ export type BillCategory =
   | 'other'
 
 export interface UserProfile {
-  id?: number
+  id?: string
   name: string
   /** Always normalized to a monthly total, regardless of incomeFrequency — used in all money math. */
   monthlyIncome: number
@@ -47,7 +47,7 @@ export const INCOME_FREQUENCY_LABELS: Record<IncomeFrequency, string> = {
 }
 
 export interface Bill {
-  id?: number
+  id?: string
   name: string
   category: BillCategory
   amount: number
@@ -67,7 +67,7 @@ export interface Bill {
 }
 
 export interface Investment {
-  id?: number
+  id?: string
   name: string
   type: InvestmentType
   platform: string
@@ -82,8 +82,8 @@ export interface Investment {
 }
 
 export interface Withdrawal {
-  id?: number
-  investmentId: number
+  id?: string
+  investmentId?: string
   investmentName: string
   investmentType: InvestmentType
   investmentPlatform: string
@@ -98,11 +98,11 @@ export interface Withdrawal {
   notes?: string
   createdAt: Date
   /** IncomeEntry created alongside this withdrawal (amount counted as income for the month). */
-  incomeEntryId?: number
+  incomeEntryId?: string
 }
 
 export interface Goal {
-  id?: number
+  id?: string
   name: string
   description?: string
   targetAmount: number
@@ -114,8 +114,8 @@ export interface Goal {
 }
 
 export interface PaymentRecord {
-  id?: number
-  billId: number
+  id?: string
+  billId: string
   amount: number
   paidAt: Date
   month: number
@@ -164,7 +164,7 @@ export const STATUS_LABELS: Record<BillStatus, string> = {
 export type IncomeCategory = 'salary' | 'bonus' | 'freelance' | 'vacation' | 'investment_withdrawal' | 'other'
 
 export interface IncomeEntry {
-  id?: number
+  id?: string
   name: string
   category: IncomeCategory
   amount: number
@@ -198,7 +198,7 @@ export const INCOME_CATEGORY_ICONS: Record<IncomeCategory, string> = {
 export type ExpenseCategory = 'food' | 'transport' | 'health' | 'shopping' | 'entertainment' | 'other'
 
 export interface DebitExpense {
-  id?: number
+  id?: string
   description: string
   amount: number
   category: ExpenseCategory

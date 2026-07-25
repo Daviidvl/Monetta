@@ -1,48 +1,53 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../database/db'
+import { useQuery } from '@tanstack/react-query'
+import {
+  getProfile, getBills, getInvestments, getGoals,
+  getWithdrawals, getIncomes, getMonthlyDebitExpenses,
+} from '../database/queries'
+import { queryKeys } from '../database/queryKeys'
 import { getMonth, getYear, daysUntilDue } from '../utils/date'
 import { useAppStore } from '../store/useAppStore'
+import { useAuthStore } from '../store/useAuthStore'
 
 export function useProfile() {
-  return useLiveQuery(() => db.userProfile.orderBy('id').first())
+  const authenticated = useAuthStore(s => s.status === 'authenticated')
+  const { data } = useQuery({ queryKey: queryKeys.profile, queryFn: getProfile, enabled: authenticated })
+  return data
 }
 
 export function useBills() {
-  return useLiveQuery(() => db.bills.orderBy('dueDay').toArray()) ?? []
+  const { data } = useQuery({ queryKey: queryKeys.bills, queryFn: getBills })
+  return data ?? []
 }
 
 export function useInvestments() {
-  return useLiveQuery(() => db.investments.orderBy('date').reverse().toArray()) ?? []
+  const { data } = useQuery({ queryKey: queryKeys.investments, queryFn: getInvestments })
+  return data ?? []
 }
 
 export function useGoals() {
-  return useLiveQuery(() => db.goals.toArray()) ?? []
+  const { data } = useQuery({ queryKey: queryKeys.goals, queryFn: getGoals })
+  return data ?? []
 }
 
 export function useWithdrawals() {
-  return useLiveQuery(() => db.withdrawals.orderBy('date').reverse().toArray()) ?? []
+  const { data } = useQuery({ queryKey: queryKeys.withdrawals, queryFn: getWithdrawals })
+  return data ?? []
 }
 
 export function useIncomes(month?: number, year?: number) {
   const now = new Date()
   const m = month ?? getMonth(now) + 1
   const y = year ?? getYear(now)
-  return useLiveQuery(() => db.incomes.where({ month: m, year: y }).toArray(), [m, y]) ?? []
+  const { data } = useQuery({ queryKey: [...queryKeys.incomes, m, y], queryFn: () => getIncomes(m, y) })
+  return data ?? []
 }
 
 export function useMonthlyDebitExpenses(month?: number, year?: number) {
   const now = new Date()
   const m = month ?? getMonth(now) + 1
   const y = year ?? getYear(now)
-  return useLiveQuery(async () => {
-    const all = await db.debitExpenses.toArray()
-    return all
-      .filter(e => {
-        const d = new Date(e.date)
-        return d.getFullYear() === y && d.getMonth() + 1 === m
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [m, y]) ?? []
+  const { data } = useQuery({ queryKey: [...queryKeys.debitExpenses, m, y], queryFn: () => getMonthlyDebitExpenses(m, y) })
+  return data ?? []
 }
 
 export function useDashboardData() {
