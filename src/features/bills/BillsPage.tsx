@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, Search, Receipt, History, ChevronDown } from 'lucide-react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -13,6 +13,7 @@ import { BillForm } from './BillForm'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
 import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
+import { queryKeys } from '../../database/queryKeys'
 import { useAppStore } from '../../store/useAppStore'
 import type { Bill, Priority } from '../../types'
 
@@ -143,7 +144,7 @@ function PaidByMonth({ bills }: { bills: Bill[] }) {
 
 // ─── History tab (payment records) ───────────────────────────────────────────
 function HistoryTab() {
-  const history = useLiveQuery(() => getBillHistory(), []) ?? []
+  const { data: history = [] } = useQuery({ queryKey: queryKeys.billHistory, queryFn: getBillHistory })
 
   const grouped = useMemo(() => {
     const map = new Map<string, BillHistoryEntry[]>()
