@@ -4,26 +4,65 @@ import { TrendingUp, Mail, Lock } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { supabase } from '../../lib/supabaseClient'
+import { getPasswordStrength } from '../../utils/passwordStrength'
+import { cn } from '../../utils/cn'
 
 function translateAuthError(message: string): string {
   if (message.includes('Invalid login credentials')) return 'Email ou senha incorretos.'
   if (message.includes('User already registered')) return 'Já existe uma conta com esse email.'
-  if (message.includes('Password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.'
+  if (message.includes('Password should be at least')) return 'A senha precisa ter pelo menos 8 caracteres.'
   if (message.includes('Unable to validate email address')) return 'Email inválido.'
   return message
+}
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  if (!password) return null
+  const { level, label } = getPasswordStrength(password)
+  const barsFilled = level === 'weak' ? 1 : level === 'medium' ? 2 : 3
+  const barColor = level === 'weak' ? 'bg-status-danger' : level === 'medium' ? 'bg-status-warning' : 'bg-status-success'
+  const textColor = level === 'weak' ? 'text-status-danger' : level === 'medium' ? 'text-status-warning' : 'text-status-success'
+
+  return (
+    <div className="flex items-center gap-2 -mt-2">
+      <div className="flex-1 flex gap-1">
+        {[0, 1, 2].map(i => (
+          <div
+            key={i}
+            className={cn('h-1 flex-1 rounded-full transition-colors duration-200', i < barsFilled ? barColor : 'bg-surface-200')}
+          />
+        ))}
+      </div>
+      <span className={cn('text-xs font-medium', textColor)}>{label}</span>
+    </div>
+  )
 }
 
 export function LoginPage() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupDone, setSignupDone] = useState(false)
 
+  const passwordsMismatch = mode === 'signup' && confirmPassword.length > 0 && password !== confirmPassword
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (mode === 'signup') {
+      if (password !== confirmPassword) {
+        setError('As senhas não coincidem.')
+        return
+      }
+      if (getPasswordStrength(password).level === 'weak') {
+        setError('Escolha uma senha mais forte: use pelo menos 8 caracteres com letras maiúsculas, minúsculas, números e símbolos.')
+        return
+      }
+    }
+
     setLoading(true)
     try {
       if (mode === 'signin') {
@@ -106,15 +145,31 @@ export function LoginPage() {
                   required
                 />
                 <Input
-                  label="Senha"
+                  label={mode === 'signup' ? 'Crie uma senha' : 'Senha'}
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   prefix={<Lock size={16} />}
-                  minLength={6}
+                  minLength={mode === 'signup' ? 8 : 6}
                   required
                 />
+
+                {mode === 'signup' && <PasswordStrengthMeter password={password} />}
+
+                {mode === 'signup' && (
+                  <Input
+                    label="Confirme a senha"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    prefix={<Lock size={16} />}
+                    error={passwordsMismatch ? 'As senhas não coincidem.' : undefined}
+                    minLength={8}
+                    required
+                  />
+                )}
 
                 {error && <p className="text-xs text-status-danger">{error}</p>}
 
@@ -125,7 +180,7 @@ export function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError('') }}
+                onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setConfirmPassword('') }}
                 className="w-full text-center text-sm text-text-muted mt-5 hover:text-text-primary transition-colors"
               >
                 {mode === 'signin' ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar'}
