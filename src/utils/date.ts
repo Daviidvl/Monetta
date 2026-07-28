@@ -47,6 +47,23 @@ export function currentMonthYear() {
   return { month: getMonth(now) + 1, year: getYear(now) }
 }
 
+// Bills get planned a few days before the calendar month actually ends
+// (payday lands on the 1st, but the user does their bill entry around the
+// 28th) — the "active" cycle rolls to next month a few days early instead of
+// waiting for midnight on the 1st, so bills entered that week land in the
+// month they're meant for instead of showing "vencida"/scheduled-for-later.
+export const CYCLE_START_DAY = 28
+
+export function cycleMonthYear(reference: Date = new Date(), cycleStartDay = CYCLE_START_DAY): { month: number; year: number } {
+  let month = reference.getMonth() + 1
+  let year = reference.getFullYear()
+  if (reference.getDate() >= cycleStartDay) {
+    month += 1
+    if (month > 12) { month = 1; year += 1 }
+  }
+  return { month, year }
+}
+
 // A bill created after its own due day already passed that month (e.g. added
 // on the 28th with dueDay 5) has no business counting as overdue right away —
 // its real first cycle is the month after creation. Derived purely from

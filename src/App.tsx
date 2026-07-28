@@ -10,6 +10,7 @@ import { useAuthStore } from './store/useAuthStore'
 import { queryClient } from './lib/queryClient'
 import { queryKeys } from './database/queryKeys'
 import { getProfile, resetMonthlyBills } from './database/queries'
+import { cycleMonthYear } from './utils/date'
 import { hasLocalDexieData } from './services/dataMigration'
 import { AuthGuard } from './components/guards/AuthGuard'
 import { ToastViewport } from './components/ui/Toast'
@@ -50,9 +51,10 @@ function MonthlyResetGuard() {
   const { lastResetKey, setLastResetKey, activeMonth, activeYear, setActiveMonth } = useAppStore()
 
   useEffect(() => {
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
+    // activeMonth/activeYear track the billing cycle, not the raw calendar —
+    // the cycle rolls to next month CYCLE_START_DAY days early (see
+    // cycleMonthYear) so bills entered ahead of payday land in the right month.
+    const { month: currentMonth, year: currentYear } = cycleMonthYear()
     const currentKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
     if (lastResetKey !== currentKey) {
@@ -60,9 +62,6 @@ function MonthlyResetGuard() {
         .then(() => setLastResetKey(currentKey))
     }
 
-    // activeMonth/activeYear always mirrors the real calendar — bills marked
-    // paid stay visible in Pagas until the month actually turns over, so
-    // there's no legitimate reason for it to run ahead or behind anymore.
     if (activeMonth !== currentMonth || activeYear !== currentYear) {
       setActiveMonth(currentMonth, currentYear)
     }

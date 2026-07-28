@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient'
 import { queryClient } from '../lib/queryClient'
 import { queryKeys } from './queryKeys'
 import { toCamelCase, toSnakeCase } from './caseMap'
-import { isBillScheduled } from '../utils/date'
+import { isBillScheduled, cycleMonthYear } from '../utils/date'
 import { db } from './db'
 import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
 
@@ -308,8 +308,7 @@ export async function getBillHistory(): Promise<BillHistoryEntry[]> {
 export async function updateOverdueBills(): Promise<void> {
   const today = new Date()
   const currentDay = today.getDate()
-  const currentMonth = today.getMonth() + 1
-  const currentYear = today.getFullYear()
+  const { month: currentMonth, year: currentYear } = cycleMonthYear(today)
   const { data, error } = await supabase.from('bills').select('id, due_day, created_at').eq('status', 'pending')
   throwIfError({ data, error })
 
