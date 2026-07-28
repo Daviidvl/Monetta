@@ -29,3 +29,4 @@ export function toCamelCase<T = Record<string, unknown>>(row: Record<string, unk
   }
   return result as T
 }
+ 

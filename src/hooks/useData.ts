@@ -68,10 +68,10 @@ export function useDashboardData() {
   const extraIncome = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const totalIncome = baseSalary + extraIncome
 
-  // Bills scheduled for a future cycle (startMonth/startYear ahead of now)
-  // don't belong to this month's obligations yet — exclude them from totals,
-  // pending/overdue, and due-soon.
-  const cycleBills = bills.filter(b => !isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear))
+  // A bill created after its own due day already passed that month isn't
+  // part of this cycle's obligations yet — exclude it from totals,
+  // pending/overdue, and due-soon (see isBillScheduled).
+  const cycleBills = bills.filter(b => !isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear))
 
   const pendingBills = cycleBills.filter(b => b.status !== 'paid')
   const paidBills    = cycleBills.filter(b => b.status === 'paid')

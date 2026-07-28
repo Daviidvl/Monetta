@@ -310,12 +310,12 @@ export async function updateOverdueBills(): Promise<void> {
   const currentDay = today.getDate()
   const currentMonth = today.getMonth() + 1
   const currentYear = today.getFullYear()
-  const { data, error } = await supabase.from('bills').select('id, due_day, start_month, start_year').eq('status', 'pending')
+  const { data, error } = await supabase.from('bills').select('id, due_day, created_at').eq('status', 'pending')
   throwIfError({ data, error })
 
   const overdueIds = (data ?? [])
     .filter(b => (b.due_day as number) < currentDay)
-    .filter(b => !isBillScheduled(b.start_month as number | undefined, b.start_year as number | undefined, currentMonth, currentYear))
+    .filter(b => !isBillScheduled(new Date(b.created_at as string), b.due_day as number, currentMonth, currentYear))
     .map(b => b.id as string)
 
   if (overdueIds.length > 0) {

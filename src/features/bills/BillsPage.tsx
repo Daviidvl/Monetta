@@ -231,8 +231,8 @@ export function BillsPage() {
     return list.sort((a, b) => {
       if (a.status === 'paid' && b.status !== 'paid') return 1
       if (a.status !== 'paid' && b.status === 'paid') return -1
-      const aSched = isBillScheduled(a.startMonth, a.startYear, activeMonth, activeYear)
-      const bSched = isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear)
+      const aSched = isBillScheduled(a.createdAt, a.dueDay, activeMonth, activeYear)
+      const bSched = isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear)
       if (aSched && !bSched) return 1
       if (!aSched && bSched) return -1
       if (a.status === 'overdue' && b.status !== 'overdue') return -1
@@ -244,7 +244,7 @@ export function BillsPage() {
   }, [activeBills, activeTab, search, activeMonth, activeYear])
 
   const totalPending = activeBills
-    .filter(b => b.status !== 'paid' && !isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear))
+    .filter(b => b.status !== 'paid' && !isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear))
     .reduce((s, b) => s + b.amount, 0)
   const totalPaid    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
   const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])

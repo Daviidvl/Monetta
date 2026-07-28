@@ -47,17 +47,31 @@ export function currentMonthYear() {
   return { month: getMonth(now) + 1, year: getYear(now) }
 }
 
-// True when a bill's configured start cycle is still ahead of the cycle
-// being evaluated — keeps a bill just created for a future month from being
-// flagged pending/overdue/due-soon before its first real cycle arrives.
+// A bill created after its own due day already passed that month (e.g. added
+// on the 28th with dueDay 5) has no business counting as overdue right away —
+// its real first cycle is the month after creation. Derived purely from
+// createdAt + dueDay, no extra field needed: once that first cycle arrives,
+// this naturally returns null/false forever after.
+export function scheduledCycle(createdAt: Date, dueDay: number): { month: number; year: number } | null {
+  const createdMonth = createdAt.getMonth() + 1
+  const createdYear = createdAt.getFullYear()
+  if (createdAt.getDate() <= dueDay) return null
+
+  let month = createdMonth + 1
+  let year = createdYear
+  if (month > 12) { month = 1; year += 1 }
+  return { month, year }
+}
+
 export function isBillScheduled(
-  startMonth: number | undefined,
-  startYear: number | undefined,
+  createdAt: Date,
+  dueDay: number,
   cycleMonth: number,
   cycleYear: number,
 ): boolean {
-  if (!startMonth || !startYear) return false
-  return startYear > cycleYear || (startYear === cycleYear && startMonth > cycleMonth)
+  const first = scheduledCycle(createdAt, dueDay)
+  if (!first) return false
+  return cycleYear < first.year || (cycleYear === first.year && cycleMonth < first.month)
 }
 
 export const MONTH_NAMES_PT = [

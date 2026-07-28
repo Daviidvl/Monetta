@@ -8,7 +8,7 @@ import { BillForm } from './BillForm'
 import type { Bill } from '../../types'
 import { CATEGORY_LABELS } from '../../types'
 import { formatCurrency } from '../../utils/format'
-import { dueDayLabel, isBillScheduled, MONTH_NAMES_PT } from '../../utils/date'
+import { dueDayLabel, isBillScheduled, scheduledCycle, MONTH_NAMES_PT } from '../../utils/date'
 import { markBillPaid, markBillPending, deleteBill, addBill } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -68,7 +68,8 @@ export function BillCard({ bill }: BillCardProps) {
   }
 
   const isPaid = bill.status === 'paid'
-  const scheduled = isBillScheduled(bill.startMonth, bill.startYear, activeMonth, activeYear)
+  const scheduled = isBillScheduled(bill.createdAt, bill.dueDay, activeMonth, activeYear)
+  const scheduledFor = scheduled ? scheduledCycle(bill.createdAt, bill.dueDay) : null
 
   return (
     <>
@@ -110,7 +111,7 @@ export function BillCard({ bill }: BillCardProps) {
             <span className="text-xs text-text-muted">{CATEGORY_LABELS[bill.category]}</span>
             <span className="text-text-muted">·</span>
             <span className="text-xs text-text-muted">
-              {scheduled ? `A partir de ${MONTH_NAMES_PT[bill.startMonth! - 1]}` : dueDayLabel(bill.dueDay, activeMonth, activeYear)}
+              {scheduledFor ? `A partir de ${MONTH_NAMES_PT[scheduledFor.month - 1]}` : dueDayLabel(bill.dueDay, activeMonth, activeYear)}
             </span>
           </div>
         </div>

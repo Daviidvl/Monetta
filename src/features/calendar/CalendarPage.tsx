@@ -41,7 +41,7 @@ export function CalendarPage() {
   const billsByDay = useMemo(() => {
     const map: Record<number, Bill[]> = {}
     for (const bill of bills) {
-      if (isBillScheduled(bill.startMonth, bill.startYear, viewMonth + 1, viewYear)) continue
+      if (isBillScheduled(bill.createdAt, bill.dueDay, viewMonth + 1, viewYear)) continue
       if (!map[bill.dueDay]) map[bill.dueDay] = []
       map[bill.dueDay].push(bill)
     }

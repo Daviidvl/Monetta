@@ -62,9 +62,6 @@ export interface Bill {
   paidAt?: Date
   paidMonth?: number
   paidYear?: number
-  /** First billing cycle this bill is active in. Undefined means "always active" (default, backward compatible). Before this cycle, the bill shows as scheduled instead of pending/overdue. */
-  startMonth?: number
-  startYear?: number
   createdAt: Date
   updatedAt: Date
 }
