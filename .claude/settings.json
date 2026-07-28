@@ -17,7 +17,8 @@
       "Bash(curl -s -w \"\\\\nwebhook: %{http_code}\\\\n\" \"https://monetta.vercel.app/api/webhook\")",
       "Bash(powershell -c \"Get-Content src/database/queries.ts -TotalCount 80\")",
       "Bash(npx eslint *)",
-      "Bash(grep -rn \"from '\\\\.\\\\./src\\\\|from '\\\\.\\\\./\\\\.\\\\./src\" api/)"
+      "Bash(grep -rn \"from '\\\\.\\\\./src\\\\|from '\\\\.\\\\./\\\\.\\\\./src\" api/)",
+      "Bash(awk -F= '{print $1, length\\($0\\)}' .env.local)"
     ]
   }
 }

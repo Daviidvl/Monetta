@@ -9,6 +9,7 @@ import {
   Sun,
   Download,
   Plus,
+  User,
 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { useAppStore } from '../../store/useAppStore'
@@ -84,6 +85,20 @@ export function Sidebar({ onBackup, onQuickAdd }: SidebarProps) {
 
       {/* Bottom actions */}
       <div className="px-3 pb-5 space-y-0.5">
+        <NavLink
+          to="/perfil"
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-2.5 px-3 h-9 w-full rounded-xl text-sm font-medium transition-colors',
+              isActive
+                ? 'text-accent-500 bg-accent-500/8'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-100',
+            )
+          }
+        >
+          <User size={16} strokeWidth={1.5} />
+          Perfil
+        </NavLink>
         {onBackup && (
           <button
             onClick={onBackup}

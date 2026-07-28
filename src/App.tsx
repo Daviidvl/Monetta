@@ -12,7 +12,6 @@ import { queryKeys } from './database/queryKeys'
 import { getProfile, resetMonthlyBills } from './database/queries'
 import { hasLocalDexieData } from './services/dataMigration'
 import { AuthGuard } from './components/guards/AuthGuard'
-import { WhatsappSyncGuard } from './components/guards/WhatsappSyncGuard'
 import { ToastViewport } from './components/ui/Toast'
 
 const DashboardPage   = lazy(() => import('./features/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
@@ -21,6 +20,7 @@ const CalendarPage    = lazy(() => import('./features/calendar/CalendarPage').th
 const InvestmentsPage = lazy(() => import('./features/investments/InvestmentsPage').then(m => ({ default: m.InvestmentsPage })))
 const GoalsPage       = lazy(() => import('./features/goals/GoalsPage').then(m => ({ default: m.GoalsPage })))
 const ExpensesPage    = lazy(() => import('./features/expenses/ExpensesPage').then(m => ({ default: m.ExpensesPage })))
+const ProfilePage     = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
 
 function PageLoader() {
   return (
@@ -111,7 +111,6 @@ function AuthenticatedApp() {
   return (
     <>
       <MonthlyResetGuard />
-      <WhatsappSyncGuard />
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
@@ -120,6 +119,7 @@ function AuthenticatedApp() {
           <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
           <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
           <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />
+          <Route path="perfil" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
