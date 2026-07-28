@@ -8,7 +8,7 @@ import { BillForm } from './BillForm'
 import type { Bill } from '../../types'
 import { CATEGORY_LABELS } from '../../types'
 import { formatCurrency } from '../../utils/format'
-import { dueDayLabel } from '../../utils/date'
+import { dueDayLabel, isBillScheduled, MONTH_NAMES_PT } from '../../utils/date'
 import { markBillPaid, markBillPending, deleteBill, addBill } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
 
@@ -68,6 +68,7 @@ export function BillCard({ bill }: BillCardProps) {
   }
 
   const isPaid = bill.status === 'paid'
+  const scheduled = isBillScheduled(bill.startMonth, bill.startYear, activeMonth, activeYear)
 
   return (
     <>
@@ -108,7 +109,9 @@ export function BillCard({ bill }: BillCardProps) {
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-text-muted">{CATEGORY_LABELS[bill.category]}</span>
             <span className="text-text-muted">·</span>
-            <span className="text-xs text-text-muted">{dueDayLabel(bill.dueDay, activeMonth, activeYear)}</span>
+            <span className="text-xs text-text-muted">
+              {scheduled ? `A partir de ${MONTH_NAMES_PT[bill.startMonth! - 1]}` : dueDayLabel(bill.dueDay, activeMonth, activeYear)}
+            </span>
           </div>
         </div>
 
@@ -116,8 +119,8 @@ export function BillCard({ bill }: BillCardProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="text-right">
             <p className="text-sm font-semibold text-text-primary">{formatCurrency(bill.amount)}</p>
-            <Badge variant={statusVariant[bill.status]} dot className="text-[10px]">
-              {statusLabel[bill.status]}
+            <Badge variant={scheduled ? 'info' : statusVariant[bill.status]} dot className="text-[10px]">
+              {scheduled ? 'Agendada' : statusLabel[bill.status]}
             </Badge>
           </div>
           <button

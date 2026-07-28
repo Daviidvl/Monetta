@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { addMonths } from 'date-fns'
 import { Button } from '../../components/ui/Button'
 import { Input, Select, Textarea } from '../../components/ui/Input'
 import { Toggle } from '../../components/ui/Toggle'
 import type { Bill, BillCategory, Priority } from '../../types'
 import { CATEGORY_LABELS, PRIORITY_LABELS } from '../../types'
 import { parseNumber } from '../../utils/format'
+import { MONTH_NAMES_PT } from '../../utils/date'
 import { addBill, updateBill } from '../../database/queries'
 
 interface BillFormProps {
@@ -20,11 +22,24 @@ const dayOptions = [
 ]
 
 export function BillForm({ bill, onClose }: BillFormProps) {
+  const cycleOptions = useMemo(() => {
+    const now = new Date()
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = addMonths(now, i)
+      const m = d.getMonth() + 1
+      const y = d.getFullYear()
+      return { value: `${y}-${m}`, label: i === 0 ? 'Este mês' : `${MONTH_NAMES_PT[m - 1]} ${y}` }
+    })
+  }, [])
+
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(bill?.name ?? '')
   const [category, setCategory] = useState<BillCategory>(bill?.category ?? 'other')
   const [amount, setAmount] = useState(bill?.amount ? String(bill.amount) : '')
   const [dueDay, setDueDay] = useState(String(bill?.dueDay ?? 1))
+  const [cycle, setCycle] = useState(
+    bill?.startMonth && bill?.startYear ? `${bill.startYear}-${bill.startMonth}` : cycleOptions[0].value,
+  )
   const [priority, setPriority] = useState<Priority>(bill?.priority ?? 'medium')
   const [isRecurring, setIsRecurring] = useState(bill?.isRecurring ?? true)
   const [isInstallment, setIsInstallment] = useState(bill?.isInstallment ?? false)
@@ -39,6 +54,8 @@ export function BillForm({ bill, onClose }: BillFormProps) {
     if (!isValid) return
     setLoading(true)
     const now = new Date()
+    const isCurrentCycle = cycle === cycleOptions[0].value
+    const [cycleYear, cycleMonth] = cycle.split('-').map(Number)
     const data: Omit<Bill, 'id'> = {
       name: name.trim(),
       category,
@@ -51,6 +68,8 @@ export function BillForm({ bill, onClose }: BillFormProps) {
       installmentPaid: isInstallment ? parseInt(installmentPaid) || 0 : undefined,
       notes: notes.trim() || undefined,
       status: 'pending',
+      startMonth: isCurrentCycle ? undefined : cycleMonth,
+      startYear: isCurrentCycle ? undefined : cycleYear,
       createdAt: bill?.createdAt ?? now,
       updatedAt: now,
     }
@@ -108,6 +127,13 @@ export function BillForm({ bill, onClose }: BillFormProps) {
           options={dayOptions}
         />
       </div>
+
+      <Select
+        label="Começa em"
+        value={cycle}
+        onChange={e => setCycle(e.target.value)}
+        options={cycleOptions}
+      />
 
       <div className="space-y-3 pt-1">
         <Toggle

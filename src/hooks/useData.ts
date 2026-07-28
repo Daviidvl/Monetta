@@ -4,7 +4,7 @@ import {
   getWithdrawals, getIncomes, getMonthlyDebitExpenses,
 } from '../database/queries'
 import { queryKeys } from '../database/queryKeys'
-import { getMonth, getYear, daysUntilDue } from '../utils/date'
+import { getMonth, getYear, daysUntilDue, isBillScheduled } from '../utils/date'
 import { useAppStore } from '../store/useAppStore'
 import { useAuthStore } from '../store/useAuthStore'
 
@@ -68,10 +68,15 @@ export function useDashboardData() {
   const extraIncome = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const totalIncome = baseSalary + extraIncome
 
-  const pendingBills = bills.filter(b => b.status !== 'paid')
-  const paidBills    = bills.filter(b => b.status === 'paid')
+  // Bills scheduled for a future cycle (startMonth/startYear ahead of now)
+  // don't belong to this month's obligations yet — exclude them from totals,
+  // pending/overdue, and due-soon.
+  const cycleBills = bills.filter(b => !isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear))
 
-  const totalExpenses      = bills.reduce((s, b) => s + b.amount, 0)
+  const pendingBills = cycleBills.filter(b => b.status !== 'paid')
+  const paidBills    = cycleBills.filter(b => b.status === 'paid')
+
+  const totalExpenses      = cycleBills.reduce((s, b) => s + b.amount, 0)
   const totalPaid          = paidBills.reduce((s, b) => s + b.amount, 0)
   const totalInvested      = investments.reduce((s, i) => s + i.amount, 0)
   const totalDebitExpenses = debitExpenses.reduce((s, e) => s + e.amount, 0)

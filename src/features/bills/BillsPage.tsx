@@ -14,6 +14,7 @@ import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
 import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
 import { queryKeys } from '../../database/queryKeys'
+import { isBillScheduled } from '../../utils/date'
 import { useAppStore } from '../../store/useAppStore'
 import type { Bill, Priority } from '../../types'
 
@@ -230,15 +231,21 @@ export function BillsPage() {
     return list.sort((a, b) => {
       if (a.status === 'paid' && b.status !== 'paid') return 1
       if (a.status !== 'paid' && b.status === 'paid') return -1
+      const aSched = isBillScheduled(a.startMonth, a.startYear, activeMonth, activeYear)
+      const bSched = isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear)
+      if (aSched && !bSched) return 1
+      if (!aSched && bSched) return -1
       if (a.status === 'overdue' && b.status !== 'overdue') return -1
       if (a.status !== 'overdue' && b.status === 'overdue') return 1
       const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
       if (pDiff !== 0) return pDiff
       return a.dueDay - b.dueDay
     })
-  }, [activeBills, activeTab, search])
+  }, [activeBills, activeTab, search, activeMonth, activeYear])
 
-  const totalPending = activeBills.filter(b => b.status !== 'paid').reduce((s, b) => s + b.amount, 0)
+  const totalPending = activeBills
+    .filter(b => b.status !== 'paid' && !isBillScheduled(b.startMonth, b.startYear, activeMonth, activeYear))
+    .reduce((s, b) => s + b.amount, 0)
   const totalPaid    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
   const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
 

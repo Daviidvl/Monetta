@@ -5,7 +5,7 @@ import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
-import { getDate, getMonth, getYear } from '../../utils/date'
+import { getDate, getMonth, getYear, isBillScheduled } from '../../utils/date'
 import type { Bill } from '../../types'
 import { PRIORITY_LABELS } from '../../types'
 
@@ -41,11 +41,12 @@ export function CalendarPage() {
   const billsByDay = useMemo(() => {
     const map: Record<number, Bill[]> = {}
     for (const bill of bills) {
+      if (isBillScheduled(bill.startMonth, bill.startYear, viewMonth + 1, viewYear)) continue
       if (!map[bill.dueDay]) map[bill.dueDay] = []
       map[bill.dueDay].push(bill)
     }
     return map
-  }, [bills])
+  }, [bills, viewMonth, viewYear])
 
   // Payday
   const payDay = profile?.paymentDay

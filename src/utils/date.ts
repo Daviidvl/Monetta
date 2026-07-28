@@ -47,4 +47,22 @@ export function currentMonthYear() {
   return { month: getMonth(now) + 1, year: getYear(now) }
 }
 
+// True when a bill's configured start cycle is still ahead of the cycle
+// being evaluated — keeps a bill just created for a future month from being
+// flagged pending/overdue/due-soon before its first real cycle arrives.
+export function isBillScheduled(
+  startMonth: number | undefined,
+  startYear: number | undefined,
+  cycleMonth: number,
+  cycleYear: number,
+): boolean {
+  if (!startMonth || !startYear) return false
+  return startYear > cycleYear || (startYear === cycleYear && startMonth > cycleMonth)
+}
+
+export const MONTH_NAMES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
 export { isToday, isTomorrow, addDays, getDate, getMonth, getYear, format, ptBR }

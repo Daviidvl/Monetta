@@ -34,6 +34,8 @@ create table public.bills (
   paid_at timestamptz,
   paid_month int,
   paid_year int,
+  start_month int,
+  start_year int,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient'
 import { queryClient } from '../lib/queryClient'
 import { queryKeys } from './queryKeys'
 import { toCamelCase, toSnakeCase } from './caseMap'
+import { isBillScheduled } from '../utils/date'
 import { db } from './db'
 import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
 
@@ -307,11 +308,14 @@ export async function getBillHistory(): Promise<BillHistoryEntry[]> {
 export async function updateOverdueBills(): Promise<void> {
   const today = new Date()
   const currentDay = today.getDate()
-  const { data, error } = await supabase.from('bills').select('id, due_day').eq('status', 'pending')
+  const currentMonth = today.getMonth() + 1
+  const currentYear = today.getFullYear()
+  const { data, error } = await supabase.from('bills').select('id, due_day, start_month, start_year').eq('status', 'pending')
   throwIfError({ data, error })
 
   const overdueIds = (data ?? [])
     .filter(b => (b.due_day as number) < currentDay)
+    .filter(b => !isBillScheduled(b.start_month as number | undefined, b.start_year as number | undefined, currentMonth, currentYear))
     .map(b => b.id as string)
 
   if (overdueIds.length > 0) {
