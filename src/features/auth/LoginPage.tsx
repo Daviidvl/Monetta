@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Mail, Lock } from 'lucide-react'
+import { TrendingUp, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { supabase } from '../../lib/supabaseClient'
@@ -45,6 +45,8 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [signupDone, setSignupDone] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const passwordsMismatch = mode === 'signup' && confirmPassword.length > 0 && password !== confirmPassword
 
@@ -146,11 +148,22 @@ export function LoginPage() {
                 />
                 <Input
                   label={mode === 'signup' ? 'Crie uma senha' : 'Senha'}
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   prefix={<Lock size={16} />}
+                  suffix={
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword(v => !v)}
+                      className="pointer-events-auto text-text-muted hover:text-text-primary transition-colors"
+                      aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  }
                   minLength={mode === 'signup' ? 8 : 6}
                   required
                 />
@@ -160,11 +173,22 @@ export function LoginPage() {
                 {mode === 'signup' && (
                   <Input
                     label="Confirme a senha"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     prefix={<Lock size={16} />}
+                    suffix={
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowConfirmPassword(v => !v)}
+                        className="pointer-events-auto text-text-muted hover:text-text-primary transition-colors"
+                        aria-label={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    }
                     error={passwordsMismatch ? 'As senhas não coincidem.' : undefined}
                     minLength={8}
                     required
@@ -180,7 +204,7 @@ export function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setConfirmPassword('') }}
+                onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setPassword(''); setConfirmPassword('') }}
                 className="w-full text-center text-sm text-text-muted mt-5 hover:text-text-primary transition-colors"
               >
                 {mode === 'signin' ? 'Não tem conta? Criar uma' : 'Já tem conta? Entrar'}
