@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { DebtClearedCelebration } from '../../components/ui/DebtClearedCelebration'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { BillCard } from './BillCard'
 import { BillForm } from './BillForm'
@@ -203,6 +204,7 @@ export function BillsPage() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
   const [search, setSearch]       = useState('')
   const [addOpen, setAddOpen]     = useState(searchParams.get('add') === '1')
+  const [celebration, setCelebration] = useState<{ billName: string; installments: number } | null>(null)
 
   const bills = useBills()
   useProfile()
@@ -246,7 +248,13 @@ export function BillsPage() {
   const totalPending = activeBills
     .filter(b => b.status !== 'paid' && !isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear))
     .reduce((s, b) => s + b.amount, 0)
-  const totalPaid    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
+  // Sums off `bills` (not `activeBills`) and pins to paidMonth/paidYear —
+  // a finished installment plan (e.g. 12/12) stays status 'paid' forever
+  // but drops out of activeBills, so it'd otherwise vanish from this total
+  // the instant it finishes even though it was paid this cycle.
+  const totalPaid = bills
+    .filter(b => b.status === 'paid' && b.paidMonth === activeMonth && b.paidYear === activeYear)
+    .reduce((s, b) => s + b.amount, 0)
   const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
 
   return (
@@ -330,7 +338,13 @@ export function BillsPage() {
                   }
                 />
               ) : (
-                filtered.map(bill => <BillCard key={bill.id} bill={bill} />)
+                filtered.map(bill => (
+                  <BillCard
+                    key={bill.id}
+                    bill={bill}
+                    onDebtCleared={(billName, installments) => setCelebration({ billName, installments })}
+                  />
+                ))
               )}
             </AnimatePresence>
           </Card>
@@ -341,6 +355,16 @@ export function BillsPage() {
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Nova conta" description="Adicione uma conta fixa ou parcelamento.">
         <BillForm onClose={() => setAddOpen(false)} />
       </Modal>
+
+      {/* Last installment paid — lives here (not inside BillCard) because a
+          finished installment plan drops out of `activeBills` and unmounts
+          its card the instant the payment lands. */}
+      <DebtClearedCelebration
+        open={celebration !== null}
+        onClose={() => setCelebration(null)}
+        billName={celebration?.billName ?? ''}
+        installments={celebration?.installments ?? 0}
+      />
     </div>
   )
 }

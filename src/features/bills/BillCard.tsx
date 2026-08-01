@@ -14,6 +14,11 @@ import { useAppStore } from '../../store/useAppStore'
 
 interface BillCardProps {
   bill: Bill
+  // Called instead of showing the celebration locally — a finished
+  // installment plan disappears from the active list (and unmounts this
+  // card) the instant the payment lands, so the celebration has to live in
+  // a parent that survives that unmount. See BillsPage.
+  onDebtCleared?: (billName: string, installments: number) => void
 }
 
 const statusVariant: Record<string, 'success' | 'danger' | 'default'> = {
@@ -28,7 +33,7 @@ const statusLabel: Record<string, string> = {
   pending: 'Pendente',
 }
 
-export function BillCard({ bill }: BillCardProps) {
+export function BillCard({ bill, onDebtCleared }: BillCardProps) {
   const { activeMonth, activeYear } = useAppStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -41,7 +46,8 @@ export function BillCard({ bill }: BillCardProps) {
       if (bill.status === 'paid') {
         await markBillPending(bill.id!, activeMonth, activeYear)
       } else {
-        await markBillPaid(bill.id!, activeMonth, activeYear)
+        const clearedDebt = await markBillPaid(bill.id!, activeMonth, activeYear)
+        if (clearedDebt) onDebtCleared?.(bill.name, bill.installmentTotal ?? 0)
       }
     } finally {
       setActioning(false)

@@ -177,11 +177,13 @@ export async function deleteBill(id: string): Promise<void> {
 // `cycleMonth`/`cycleYear` identify the billing cycle the user is currently
 // working through (store's activeMonth/activeYear) — not necessarily the
 // real wall-clock month, since a cycle can be closed out early.
-export async function markBillPaid(id: string, cycleMonth: number, cycleYear: number): Promise<void> {
+// Returns true when this payment just completed the final installment of an
+// installment plan — callers use it to trigger the "debt cleared" celebration.
+export async function markBillPaid(id: string, cycleMonth: number, cycleYear: number): Promise<boolean> {
   const now = new Date()
   const { data: billRaw, error: getError } = await supabase.from('bills').select('*').eq('id', id).maybeSingle()
   if (getError) throw new Error(getError.message)
-  if (!billRaw) return
+  if (!billRaw) return false
   const bill = mapBill(billRaw)
 
   const updates: Record<string, unknown> = {
@@ -192,8 +194,11 @@ export async function markBillPaid(id: string, cycleMonth: number, cycleYear: nu
     updated_at: now.toISOString(),
   }
 
+  let justClearedDebt = false
   if (bill.isInstallment && bill.installmentPaid !== undefined && bill.installmentTotal !== undefined) {
-    updates.installment_paid = Math.min(bill.installmentPaid + 1, bill.installmentTotal)
+    const newPaid = Math.min(bill.installmentPaid + 1, bill.installmentTotal)
+    updates.installment_paid = newPaid
+    justClearedDebt = bill.installmentPaid < bill.installmentTotal && newPaid === bill.installmentTotal
   }
 
   const { error: updError } = await supabase.from('bills').update(updates).eq('id', id)
@@ -210,6 +215,7 @@ export async function markBillPaid(id: string, cycleMonth: number, cycleYear: nu
   })
   if (insError) throw new Error(insError.message)
   invalidate(queryKeys.bills, queryKeys.paymentRecords, queryKeys.billHistory)
+  return justClearedDebt
 }
 
 export async function markBillPending(id: string, cycleMonth: number, cycleYear: number): Promise<void> {
