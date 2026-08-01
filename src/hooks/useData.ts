@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  getProfile, getBills, getInvestments, getGoals,
+  getProfile, getBills, getInvestments, getGoals, getGoalDeposits,
   getWithdrawals, getIncomes, getMonthlyDebitExpenses,
 } from '../database/queries'
 import { queryKeys } from '../database/queryKeys'
@@ -26,6 +26,11 @@ export function useInvestments() {
 
 export function useGoals() {
   const { data } = useQuery({ queryKey: queryKeys.goals, queryFn: getGoals })
+  return data ?? []
+}
+
+export function useGoalDeposits() {
+  const { data } = useQuery({ queryKey: queryKeys.goalDeposits, queryFn: getGoalDeposits })
   return data ?? []
 }
 
@@ -55,6 +60,7 @@ export function useDashboardData() {
   const bills      = useBills()
   const investments = useInvestments()
   const goals      = useGoals()
+  const goalDeposits = useGoalDeposits()
 
   const now          = new Date()
   const currentMonth = getMonth(now) + 1
@@ -80,9 +86,18 @@ export function useDashboardData() {
   const totalPaid          = paidBills.reduce((s, b) => s + b.amount, 0)
   const totalInvested      = investments.reduce((s, i) => s + i.amount, 0)
   const totalDebitExpenses = debitExpenses.reduce((s, e) => s + e.amount, 0)
-  // Money moved into investments isn't a monthly expense — it only affects
-  // "remaining" when it comes back out via a withdrawal (counted as income then).
-  const remaining          = totalIncome - totalExpenses - totalDebitExpenses
+
+  // Money moved into an investment or set aside for a goal THIS month left
+  // the checking account this month, so — like a bill or debit expense — it
+  // comes out of "disponível" now. Contributions from earlier months already
+  // left in that month's own snapshot, so they aren't subtracted again here
+  // (totalInvested above stays the all-time/portfolio figure for display).
+  const isThisMonth = (d: Date) => d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear
+  const totalInvestedThisMonth     = investments.filter(i => isThisMonth(i.date)).reduce((s, i) => s + i.amount, 0)
+  const totalGoalDepositsThisMonth = goalDeposits.filter(d => isThisMonth(d.date)).reduce((s, d) => s + d.amount, 0)
+  const totalSavedThisMonth        = totalInvestedThisMonth + totalGoalDepositsThisMonth
+
+  const remaining = totalIncome - totalExpenses - totalDebitExpenses - totalSavedThisMonth
 
   const dueSoon = pendingBills
     .filter(b => { const diff = daysUntilDue(b.dueDay, activeMonth, activeYear); return diff >= 0 && diff <= 7 })
@@ -92,10 +107,11 @@ export function useDashboardData() {
   const installments = bills.filter(b => b.isInstallment)
 
   return {
-    profile, bills, investments, goals,
+    profile, bills, investments, goals, goalDeposits,
     incomeEntries, debitExpenses,
     baseSalary, extraIncome, totalIncome,
     totalExpenses, totalPaid, totalInvested, totalDebitExpenses,
+    totalInvestedThisMonth, totalGoalDepositsThisMonth, totalSavedThisMonth,
     remaining, dueSoon, overdue, installments,
   }
 }

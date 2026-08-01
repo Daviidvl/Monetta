@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Target, Pencil, Trash2, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import {
+  Plus, Target, Pencil, Trash2, Lightbulb, AlertTriangle, CheckCircle2,
+  PiggyBank, History, Undo2,
+} from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
@@ -10,11 +13,12 @@ import { ProgressBar } from '../../components/ui/ProgressBar'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { GoalForm } from './GoalForm'
-import { useGoals, useDashboardData } from '../../hooks/useData'
+import { GoalDepositForm } from './GoalDepositForm'
+import { useGoals, useGoalDeposits, useDashboardData } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
 import { formatDate } from '../../utils/date'
-import { deleteGoal } from '../../database/queries'
-import type { Goal } from '../../types'
+import { deleteGoal, deleteGoalDeposit } from '../../database/queries'
+import type { Goal, GoalDeposit } from '../../types'
 import { calcSavingPlan, formatMonths, type SavingPlan } from '../../utils/goals'
 
 // ─── Saving hint shown inside each goal card ─────────────────────────────────
@@ -53,12 +57,16 @@ function SavingHint({ plan }: { plan: SavingPlan }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export function GoalsPage() {
   const goals = useGoals()
+  const deposits = useGoalDeposits()
   const { remaining } = useDashboardData()
   const [searchParams] = useSearchParams()
 
   const [addOpen, setAddOpen]         = useState(searchParams.get('add') === '1')
   const [editTarget, setEditTarget]   = useState<Goal | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Goal | null>(null)
+  const [depositTarget, setDepositTarget] = useState<Goal | null>(null)
+  const [undoTarget, setUndoTarget]   = useState<GoalDeposit | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   const totalTarget  = goals.reduce((s, g) => s + g.targetAmount,  0)
   const totalCurrent = goals.reduce((s, g) => s + g.currentAmount, 0)
@@ -139,6 +147,13 @@ export function GoalsPage() {
                       </div>
                       <div className="flex gap-1 flex-shrink-0 ml-2">
                         <button
+                          onClick={() => setDepositTarget(goal)}
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-text-muted hover:bg-accent-500/8 hover:text-accent-500 transition-colors"
+                          title="Guardar dinheiro"
+                        >
+                          <PiggyBank size={13} />
+                        </button>
+                        <button
                           onClick={() => setEditTarget(goal)}
                           className="w-7 h-7 rounded-xl flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors"
                         >
@@ -197,11 +212,55 @@ export function GoalsPage() {
         </AnimatePresence>
       </div>
 
+      {/* Deposit history */}
+      {deposits.length > 0 && (
+        <div className="mt-5">
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors mb-2"
+          >
+            <History size={13} />
+            Histórico de aportes ({deposits.length})
+          </button>
+          {showHistory && (
+            <Card padded={false}>
+              {deposits.map((d, i) => (
+                <div
+                  key={d.id}
+                  className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-border-subtle' : ''}`}
+                >
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-accent-500/10 text-accent-500">
+                    <PiggyBank size={14} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{d.goalName}</p>
+                    <p className="text-xs text-text-muted">{formatDate(d.date)}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-status-success flex-shrink-0">
+                    +{formatCurrency(d.amount)}
+                  </p>
+                  <button
+                    onClick={() => setUndoTarget(d)}
+                    className="w-7 h-7 rounded-xl flex items-center justify-center text-text-muted hover:bg-surface-100 transition-colors flex-shrink-0"
+                    title="Desfazer aporte"
+                  >
+                    <Undo2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
+
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Nova meta" description="Defina seu objetivo financeiro.">
         <GoalForm onClose={() => setAddOpen(false)} />
       </Modal>
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Editar meta">
         {editTarget && <GoalForm goal={editTarget} onClose={() => setEditTarget(null)} />}
+      </Modal>
+      <Modal open={!!depositTarget} onClose={() => setDepositTarget(null)} title="Guardar dinheiro" description={depositTarget ? `Aportar para "${depositTarget.name}".` : undefined}>
+        {depositTarget && <GoalDepositForm goal={depositTarget} onClose={() => setDepositTarget(null)} />}
       </Modal>
       <ConfirmDialog
         open={!!deleteTarget}
@@ -210,6 +269,14 @@ export function GoalsPage() {
         title="Excluir meta"
         description={`Excluir "${deleteTarget?.name}"?`}
         confirmLabel="Excluir"
+      />
+      <ConfirmDialog
+        open={!!undoTarget}
+        onClose={() => setUndoTarget(null)}
+        onConfirm={async () => { await deleteGoalDeposit(undoTarget!.id!); setUndoTarget(null) }}
+        title="Desfazer aporte"
+        description={`O valor de ${undoTarget ? formatCurrency(undoTarget.amount) : ''} sairá de "${undoTarget?.goalName}".`}
+        confirmLabel="Desfazer"
       />
     </div>
   )

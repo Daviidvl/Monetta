@@ -67,6 +67,21 @@ create table public.goals (
   updated_at timestamptz not null default now()
 );
 
+-- Ledger of deposits made toward a goal — `goals.current_amount` is kept as
+-- a denormalized running total (updated atomically by add_goal_deposit /
+-- delete_goal_deposit below) so existing reads of the goal row don't need to
+-- sum this table; the ledger exists for history + "desfazer" (undo).
+create table public.goal_deposits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  goal_id uuid not null references public.goals(id) on delete cascade,
+  goal_name text not null,
+  amount numeric not null,
+  date timestamptz not null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
 create table public.incomes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -128,6 +143,8 @@ create table public.withdrawals (
 create index bills_user_id_idx on public.bills(user_id);
 create index investments_user_id_idx on public.investments(user_id);
 create index goals_user_id_idx on public.goals(user_id);
+create index goal_deposits_user_id_idx on public.goal_deposits(user_id);
+create index goal_deposits_goal_id_idx on public.goal_deposits(goal_id);
 create index incomes_user_id_idx on public.incomes(user_id);
 create index debit_expenses_user_id_idx on public.debit_expenses(user_id);
 create index payment_records_user_id_idx on public.payment_records(user_id);
@@ -142,7 +159,7 @@ declare
   t text;
 begin
   for t in select unnest(array[
-    'user_profiles', 'bills', 'investments', 'goals',
+    'user_profiles', 'bills', 'investments', 'goals', 'goal_deposits',
     'incomes', 'debit_expenses', 'payment_records', 'withdrawals'
   ]) loop
     execute format('alter table public.%I enable row level security', t);
@@ -293,3 +310,73 @@ revoke all on function public.add_withdrawal from public;
 revoke all on function public.delete_withdrawal from public;
 grant execute on function public.add_withdrawal to authenticated;
 grant execute on function public.delete_withdrawal to authenticated;
+
+-- ─── RPCs transacionais (aportes em metas) ─────────────────────────────
+-- Mesma ideia dos saques de investimento: manter o `current_amount` da meta
+-- e o registro no ledger `goal_deposits` em sincronia numa única transação.
+
+create or replace function public.add_goal_deposit(
+  p_goal_id uuid,
+  p_amount numeric,
+  p_date timestamptz,
+  p_notes text
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_goal record;
+  v_deposit_id uuid;
+begin
+  if v_user_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select * into v_goal from goals where id = p_goal_id and user_id = v_user_id;
+  if not found then
+    raise exception 'Meta não encontrada';
+  end if;
+
+  insert into goal_deposits (user_id, goal_id, goal_name, amount, date, notes)
+  values (v_user_id, p_goal_id, v_goal.name, p_amount, p_date, p_notes)
+  returning id into v_deposit_id;
+
+  update goals set current_amount = current_amount + p_amount, updated_at = now()
+    where id = p_goal_id;
+
+  return v_deposit_id;
+end;
+$$;
+
+create or replace function public.delete_goal_deposit(p_deposit_id uuid) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_deposit record;
+begin
+  if v_user_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select * into v_deposit from goal_deposits
+    where id = p_deposit_id and user_id = v_user_id;
+  if not found then
+    return;
+  end if;
+
+  update goals set current_amount = greatest(0, current_amount - v_deposit.amount), updated_at = now()
+    where id = v_deposit.goal_id;
+
+  delete from goal_deposits where id = p_deposit_id;
+end;
+$$;
+
+revoke all on function public.add_goal_deposit from public;
+revoke all on function public.delete_goal_deposit from public;
+grant execute on function public.add_goal_deposit to authenticated;
+grant execute on function public.delete_goal_deposit to authenticated;

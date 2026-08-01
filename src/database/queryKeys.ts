@@ -6,6 +6,7 @@ export const queryKeys = {
   investments: ['investments'],
   withdrawals: ['withdrawals'],
   goals: ['goals'],
+  goalDeposits: ['goalDeposits'],
   incomes: ['incomes'],
   debitExpenses: ['debitExpenses'],
   paymentRecords: ['paymentRecords'],

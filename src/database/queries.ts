@@ -4,7 +4,7 @@ import { queryKeys } from './queryKeys'
 import { toCamelCase, toSnakeCase } from './caseMap'
 import { isBillScheduled, cycleMonthYear } from '../utils/date'
 import { db } from './db'
-import type { Bill, BillStatus, DebitExpense, Goal, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
+import type { Bill, BillStatus, DebitExpense, Goal, GoalDeposit, IncomeEntry, Investment, PaymentRecord, UserProfile, Withdrawal } from '../types'
 
 function invalidate(...keys: (readonly string[])[]) {
   for (const key of keys) queryClient.invalidateQueries({ queryKey: key })
@@ -62,6 +62,14 @@ function mapGoal(row: Record<string, unknown>): Goal {
     deadline: row.deadline ? new Date(row.deadline as string) : undefined,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
+  }
+}
+
+function mapGoalDeposit(row: Record<string, unknown>): GoalDeposit {
+  return {
+    ...toCamelCase<GoalDeposit>(row),
+    date: new Date(row.date as string),
+    createdAt: new Date(row.created_at as string),
   }
 }
 
@@ -458,6 +466,43 @@ export async function deleteGoal(id: string): Promise<void> {
   invalidate(queryKeys.goals)
 }
 
+// ─── Goal Deposits ───────────────────────────────────────────
+export async function getGoalDeposits(): Promise<GoalDeposit[]> {
+  const { data, error } = await supabase.from('goal_deposits').select('*').order('date', { ascending: false })
+  throwIfError({ data, error })
+  return (data ?? []).map(mapGoalDeposit)
+}
+
+interface AddGoalDepositInput {
+  goalId: string
+  amount: number
+  date: Date
+  notes?: string
+}
+
+// Adds money to a goal — increments `goals.current_amount` and logs the
+// deposit in `goal_deposits` atomically via RPC (see add_goal_deposit in
+// supabase/schema.sql), mirroring how investment withdrawals stay in sync
+// with their source investment.
+export async function addGoalDeposit(input: AddGoalDepositInput): Promise<string> {
+  const { data, error } = await supabase.rpc('add_goal_deposit', {
+    p_goal_id: input.goalId,
+    p_amount: input.amount,
+    p_date: input.date.toISOString(),
+    p_notes: input.notes ?? null,
+  })
+  if (error) throw new Error(error.message)
+  invalidate(queryKeys.goals, queryKeys.goalDeposits)
+  return data as string
+}
+
+// Reverses a deposit, subtracting it back off the goal's current_amount.
+export async function deleteGoalDeposit(id: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_goal_deposit', { p_deposit_id: id })
+  if (error) throw new Error(error.message)
+  invalidate(queryKeys.goals, queryKeys.goalDeposits)
+}
+
 // ─── Payment Records ────────────────────────────────────────
 export async function getPaymentRecords(month: number, year: number): Promise<PaymentRecord[]> {
   const { data, error } = await supabase.from('payment_records').select('*').eq('month', month).eq('year', year)
@@ -553,7 +598,7 @@ export async function getMonthlyDebitExpenses(month: number, year: number): Prom
 
 // ─── Backup (operates on the CURRENT Supabase account) ────────────────
 const BACKUP_TABLES = [
-  'user_profiles', 'bills', 'investments', 'goals',
+  'user_profiles', 'bills', 'investments', 'goals', 'goal_deposits',
   'payment_records', 'incomes', 'debit_expenses', 'withdrawals',
 ] as const
 
@@ -567,11 +612,12 @@ export async function clearAllData(): Promise<void> {
 }
 
 export async function exportAllData() {
-  const [userProfile, bills, investments, goals, paymentRecords, incomes, debitExpenses, withdrawals] = await Promise.all([
+  const [userProfile, bills, investments, goals, goalDeposits, paymentRecords, incomes, debitExpenses, withdrawals] = await Promise.all([
     getProfile(),
     getBills(),
     getInvestments(),
     getGoals(),
+    getGoalDeposits(),
     supabase.from('payment_records').select('*').then(r => (r.data ?? []).map(mapPaymentRecord)),
     getAllIncomes(),
     supabase.from('debit_expenses').select('*').then(r => (r.data ?? []).map(mapDebitExpense)),
@@ -579,7 +625,7 @@ export async function exportAllData() {
   ])
   return {
     userProfile: userProfile ? [userProfile] : [],
-    bills, investments, goals, paymentRecords, incomes, debitExpenses, withdrawals,
+    bills, investments, goals, goalDeposits, paymentRecords, incomes, debitExpenses, withdrawals,
     exportedAt: new Date().toISOString(),
   }
 }
@@ -604,7 +650,11 @@ export async function importAllData(data: Awaited<ReturnType<typeof exportAllDat
     if (income.id) incomeIdMap.set(income.id, newId)
   }
 
-  for (const goal of data.goals) await addGoal(goal)
+  const goalIdMap = new Map<string, string>()
+  for (const goal of data.goals) {
+    const newId = await addGoal(goal)
+    if (goal.id) goalIdMap.set(goal.id, newId)
+  }
   for (const expense of data.debitExpenses ?? []) await addDebitExpense(expense)
 
   const billIdMap = new Map<string, string>()
@@ -628,6 +678,17 @@ export async function importAllData(data: Awaited<ReturnType<typeof exportAllDat
       userId,
       investmentId: newInvestmentId,
       incomeEntryId: newIncomeEntryId,
+    }))
+  }
+
+  for (const deposit of data.goalDeposits ?? []) {
+    const newGoalId = deposit.goalId ? goalIdMap.get(deposit.goalId) : undefined
+    if (!newGoalId) continue
+    await supabase.from('goal_deposits').insert(toSnakeCase({
+      ...deposit,
+      id: undefined,
+      userId,
+      goalId: newGoalId,
     }))
   }
 

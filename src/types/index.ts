@@ -113,6 +113,16 @@ export interface Goal {
   updatedAt: Date
 }
 
+export interface GoalDeposit {
+  id?: string
+  goalId?: string
+  goalName: string
+  amount: number
+  date: Date
+  notes?: string
+  createdAt: Date
+}
+
 export interface PaymentRecord {
   id?: string
   billId: string

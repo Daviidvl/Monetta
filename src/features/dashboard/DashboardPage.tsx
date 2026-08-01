@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
-  AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb, TrendingUp, TrendingDown,
+  AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb, TrendingUp, TrendingDown, PiggyBank,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
@@ -15,6 +15,7 @@ import { BudgetRing } from '../../components/ui/BudgetRing'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { IncomeForm } from '../income/IncomeForm'
+import { GoalDepositForm } from '../goals/GoalDepositForm'
 import { useDashboardData } from '../../hooks/useData'
 import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency, parseNumber } from '../../utils/format'
@@ -45,6 +46,7 @@ export function DashboardPage() {
     incomeEntries, baseSalary, extraIncome, totalIncome,
     totalExpenses, totalDebitExpenses, remaining,
     dueSoon, overdue, installments, totalInvested,
+    totalGoalDepositsThisMonth, totalSavedThisMonth,
   } = data
 
   // Live crypto prices for portfolio value
@@ -77,8 +79,11 @@ export function DashboardPage() {
   const [editSalaryOpen, setEditSalaryOpen]       = useState(false)
   const [salaryInput, setSalaryInput]             = useState('')
   const [savingSalary, setSavingSalary]           = useState(false)
+  const [depositOpen, setDepositOpen]             = useState(false)
 
-  const pctExpenses = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0
+  const pctExpenses = totalIncome > 0
+    ? ((totalExpenses + totalDebitExpenses + totalSavedThisMonth) / totalIncome) * 100
+    : 0
   const mainGoal    = goals[0]
 
   // Suggestion: show when there's meaningful free cash
@@ -134,6 +139,12 @@ export function DashboardPage() {
                 <>
                   <span>·</span>
                   <span>Gastos: {formatCurrency(totalDebitExpenses)}</span>
+                </>
+              )}
+              {totalGoalDepositsThisMonth > 0 && (
+                <>
+                  <span>·</span>
+                  <span>Metas: {formatCurrency(totalGoalDepositsThisMonth)}</span>
                 </>
               )}
               {totalInvested > 0 && (
@@ -448,9 +459,17 @@ export function DashboardPage() {
                   </p>
                 </div>
                 <ProgressBar value={mainGoal.currentAmount} max={mainGoal.targetAmount} color={mainGoal.color} />
-                <div className="flex justify-between mt-2 text-xs text-text-muted">
-                  <span>{formatCurrency(mainGoal.currentAmount)}</span>
-                  <span>{formatCurrency(mainGoal.targetAmount)}</span>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex gap-3 text-xs text-text-muted">
+                    <span>{formatCurrency(mainGoal.currentAmount)}</span>
+                    <span>{formatCurrency(mainGoal.targetAmount)}</span>
+                  </div>
+                  <button
+                    onClick={() => setDepositOpen(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-accent-500 hover:text-accent-600 transition-colors"
+                  >
+                    <PiggyBank size={12} /> Guardar dinheiro
+                  </button>
                 </div>
                 {mainGoalPlan && (
                   <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-accent-500/6">
@@ -526,6 +545,9 @@ export function DashboardPage() {
       </Modal>
       <Modal open={!!editIncome} onClose={() => setEditIncome(null)} title="Editar entrada">
         {editIncome && <IncomeForm income={editIncome} onClose={() => setEditIncome(null)} />}
+      </Modal>
+      <Modal open={depositOpen} onClose={() => setDepositOpen(false)} title="Guardar dinheiro" description={mainGoal ? `Aportar para "${mainGoal.name}".` : undefined}>
+        {mainGoal && <GoalDepositForm goal={mainGoal} onClose={() => setDepositOpen(false)} />}
       </Modal>
       <Modal open={editSalaryOpen} onClose={() => setEditSalaryOpen(false)} title="Editar salário base" description="Como sua renda é variável, ajuste o valor sempre que necessário.">
         <div className="space-y-4 pt-1">
