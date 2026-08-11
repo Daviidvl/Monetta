@@ -5,7 +5,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
-.api
-.claude
+.api/
+.claude/
 .vercel
 .env*
