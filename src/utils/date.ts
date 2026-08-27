@@ -52,7 +52,7 @@ export function currentMonthYear() {
 // 28th) — the "active" cycle rolls to next month a few days early instead of
 // waiting for midnight on the 1st, so bills entered that week land in the
 // month they're meant for instead of showing "vencida"/scheduled-for-later.
-export const CYCLE_START_DAY = 28
+export const CYCLE_START_DAY = 25
 
 export function cycleMonthYear(reference: Date = new Date(), cycleStartDay = CYCLE_START_DAY): { month: number; year: number } {
   let month = reference.getMonth() + 1
