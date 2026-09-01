@@ -4,7 +4,8 @@ import {
   getWithdrawals, getIncomes, getMonthlyDebitExpenses,
 } from '../database/queries'
 import { queryKeys } from '../database/queryKeys'
-import { getMonth, getYear, daysUntilDue, isBillScheduled } from '../utils/date'
+import { getMonth, getYear, daysUntilDue } from '../utils/date'
+import { getBillCycleTotals } from '../utils/bills'
 import { useAppStore } from '../store/useAppStore'
 import { useAuthStore } from '../store/useAuthStore'
 
@@ -74,16 +75,10 @@ export function useDashboardData() {
   const extraIncome = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const totalIncome = baseSalary + extraIncome
 
-  // A bill created after its own due day already passed that month isn't
-  // part of this cycle's obligations yet — exclude it from totals,
-  // pending/overdue, and due-soon (see isBillScheduled).
-  const cycleBills = bills.filter(b => !isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear))
-
-  const pendingBills = cycleBills.filter(b => b.status !== 'paid')
-  const paidBills    = cycleBills.filter(b => b.status === 'paid')
-
-  const totalExpenses      = cycleBills.reduce((s, b) => s + b.amount, 0)
-  const totalPaid          = paidBills.reduce((s, b) => s + b.amount, 0)
+  // "Contas" on the home page must always equal BillsPage's "A pagar" +
+  // "Já pago este mês" — getBillCycleTotals is the single shared source for
+  // both, so they can't drift out of sync again.
+  const { pendingBills, totalPaid, totalExpenses } = getBillCycleTotals(bills, activeMonth, activeYear)
   const totalInvested      = investments.reduce((s, i) => s + i.amount, 0)
   const totalDebitExpenses = debitExpenses.reduce((s, e) => s + e.amount, 0)
 

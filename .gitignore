@@ -5,7 +5,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
-.api/
 .claude/
+.agents/
+skills-lock.json
 .vercel
 .env*

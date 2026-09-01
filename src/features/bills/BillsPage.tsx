@@ -16,6 +16,7 @@ import { formatCurrency } from '../../utils/format'
 import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
 import { queryKeys } from '../../database/queryKeys'
 import { isBillScheduled } from '../../utils/date'
+import { isFinishedInstallment, getBillCycleTotals } from '../../utils/bills'
 import { useAppStore } from '../../store/useAppStore'
 import type { Bill, Priority } from '../../types'
 
@@ -35,12 +36,6 @@ const MONTH_NAMES = [
 ]
 
 const priorityOrder: Record<Priority, number> = { high: 0, medium: 1, low: 2 }
-
-// A finished installment plan (e.g. 10/10) has nothing left to track — it
-// should drop out of the active bill views but still shows up in Pagas/Histórico.
-function isFinishedInstallment(bill: Bill): boolean {
-  return bill.isInstallment && (bill.installmentPaid ?? 0) >= (bill.installmentTotal ?? 1)
-}
 
 const listStagger = {
   hidden: {},
@@ -245,17 +240,8 @@ export function BillsPage() {
     })
   }, [activeBills, activeTab, search, activeMonth, activeYear])
 
-  const totalPending = activeBills
-    .filter(b => b.status !== 'paid' && !isBillScheduled(b.createdAt, b.dueDay, activeMonth, activeYear))
-    .reduce((s, b) => s + b.amount, 0)
-  // Sums off `bills` (not `activeBills`) and pins to paidMonth/paidYear —
-  // a finished installment plan (e.g. 12/12) stays status 'paid' forever
-  // but drops out of activeBills, so it'd otherwise vanish from this total
-  // the instant it finishes even though it was paid this cycle.
-  const totalPaid = bills
-    .filter(b => b.status === 'paid' && b.paidMonth === activeMonth && b.paidYear === activeYear)
-    .reduce((s, b) => s + b.amount, 0)
-  const paidBills    = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
+  const { totalPending, totalPaid } = getBillCycleTotals(bills, activeMonth, activeYear)
+  const paidBills = useMemo(() => bills.filter(b => b.status === 'paid'), [bills])
 
   return (
     <div className="px-4 pt-6 pb-4 max-w-2xl mx-auto lg:px-6 lg:pt-8">
