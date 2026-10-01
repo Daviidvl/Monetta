@@ -9,6 +9,7 @@ export function isFinishedInstallment(bill: Bill): boolean {
 
 export interface BillCycleTotals {
   pendingBills: Bill[]
+  paidBills: Bill[]
   totalPending: number
   totalPaid: number
   totalExpenses: number
@@ -34,5 +35,5 @@ export function getBillCycleTotals(bills: Bill[], cycleMonth: number, cycleYear:
   const totalPending = pendingBills.reduce((s, b) => s + b.amount, 0)
   const totalPaid = paidBills.reduce((s, b) => s + b.amount, 0)
 
-  return { pendingBills, totalPending, totalPaid, totalExpenses: totalPending + totalPaid }
+  return { pendingBills, paidBills, totalPending, totalPaid, totalExpenses: totalPending + totalPaid }
 }

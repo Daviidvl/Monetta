@@ -34,6 +34,7 @@ export function generateInsights(
   totalIncome: number,
   activeMonth: number,
   activeYear: number,
+  limit = 4,
 ): Insight[] {
   const insights: Insight[] = []
   if (!profile) return insights
@@ -126,5 +127,5 @@ export function generateInsights(
     }
   }
 
-  return insights.slice(0, 4)
+  return insights.slice(0, limit)
 }

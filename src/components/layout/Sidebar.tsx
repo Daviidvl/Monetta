@@ -5,6 +5,7 @@ import {
   Wallet,
   TrendingUp,
   Target,
+  HeartPulse,
   Moon,
   Sun,
   Download,
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/gastos',        label: 'Gastos',       icon: Wallet },
   { to: '/investimentos', label: 'Investimentos', icon: TrendingUp },
   { to: '/metas',         label: 'Metas',        icon: Target },
+  { to: '/saude',         label: 'Saúde',        icon: HeartPulse },
 ]
 
 interface SidebarProps {

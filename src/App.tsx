@@ -22,6 +22,7 @@ const InvestmentsPage = lazy(() => import('./features/investments/InvestmentsPag
 const GoalsPage       = lazy(() => import('./features/goals/GoalsPage').then(m => ({ default: m.GoalsPage })))
 const ExpensesPage    = lazy(() => import('./features/expenses/ExpensesPage').then(m => ({ default: m.ExpensesPage })))
 const ProfilePage     = lazy(() => import('./features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })))
+const HealthPage      = lazy(() => import('./features/health/HealthPage').then(m => ({ default: m.HealthPage })))
 
 function PageLoader() {
   return (
@@ -118,6 +119,7 @@ function AuthenticatedApp() {
           <Route path="calendario" element={<Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>} />
           <Route path="investimentos" element={<Suspense fallback={<PageLoader />}><InvestmentsPage /></Suspense>} />
           <Route path="metas" element={<Suspense fallback={<PageLoader />}><GoalsPage /></Suspense>} />
+          <Route path="saude" element={<Suspense fallback={<PageLoader />}><HealthPage /></Suspense>} />
           <Route path="perfil" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

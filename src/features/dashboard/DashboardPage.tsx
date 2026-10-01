@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
-  AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb, TrendingUp, TrendingDown, PiggyBank,
+  AlertCircle, ChevronRight, Moon, Sun, Plus, Pencil, Trash2, Lightbulb, TrendingUp, TrendingDown, PiggyBank, HeartPulse,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
@@ -21,6 +21,7 @@ import { useCryptoPrices } from '../../hooks/useCryptoPrices'
 import { formatCurrency, parseNumber } from '../../utils/format'
 import { dueDayLabel } from '../../utils/date'
 import { generateInsights } from '../../utils/insights'
+import { calculateHealthScore, LEVEL_COLORS, LEVEL_LABELS } from '../../utils/financialHealth'
 import { TipsCarousel } from '../../components/ui/TipsCarousel'
 import { useMarketTips } from '../../hooks/useMarketTips'
 import { useAppStore } from '../../store/useAppStore'
@@ -72,6 +73,10 @@ export function DashboardPage() {
 
   const insights   = generateInsights(profile, bills, investments, goals, totalIncome, activeMonth, activeYear)
   const marketTips = useMarketTips()
+  const healthReport = calculateHealthScore({
+    totalIncome, totalExpenses, totalSavedThisMonth, investments, installments, goals,
+    goalDepositsThisMonth: totalGoalDepositsThisMonth,
+  })
 
   const [incomeOpen, setIncomeOpen]               = useState(false)
   const [editIncome, setEditIncome]               = useState<IncomeEntry | null>(null)
@@ -361,6 +366,26 @@ export function DashboardPage() {
               )}
             </div>
           </Card>
+        </motion.div>
+
+        {/* Financial health */}
+        <motion.div variants={fadeUp}>
+          <Link
+            to="/saude"
+            className="flex items-center gap-3 p-4 rounded-3xl bg-surface-0 shadow-card hover:shadow-card-hover transition-shadow"
+          >
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${LEVEL_COLORS[healthReport.level]}1A`, color: LEVEL_COLORS[healthReport.level] }}
+            >
+              <HeartPulse size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-primary">Saúde financeira</p>
+              <p className="text-xs text-text-muted">{LEVEL_LABELS[healthReport.level]} · {healthReport.score}/100</p>
+            </div>
+            <ChevronRight size={16} className="text-text-muted flex-shrink-0" />
+          </Link>
         </motion.div>
 
         {/* Overdue alert */}
