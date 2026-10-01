@@ -70,7 +70,7 @@ export function DashboardPage() {
 
   const { theme, toggleTheme, activeMonth, activeYear } = useAppStore()
 
-  const insights   = generateInsights(profile, bills, investments, goals, totalIncome)
+  const insights   = generateInsights(profile, bills, investments, goals, totalIncome, activeMonth, activeYear)
   const marketTips = useMarketTips()
 
   const [incomeOpen, setIncomeOpen]               = useState(false)

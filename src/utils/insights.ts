@@ -1,5 +1,6 @@
 import type { Bill, Goal, Investment, UserProfile } from '../types'
 import { formatCurrency } from './format'
+import { getBillCycleTotals, isFinishedInstallment } from './bills'
 
 export interface Insight {
   id: string
@@ -31,13 +32,14 @@ export function generateInsights(
   investments: Investment[],
   goals: Goal[],
   totalIncome: number,
+  activeMonth: number,
+  activeYear: number,
 ): Insight[] {
   const insights: Insight[] = []
   if (!profile) return insights
 
   const income = totalIncome
-  const pendingBills = bills.filter(b => b.status !== 'paid')
-  const totalExpenses = bills.reduce((s, b) => s + b.amount, 0)
+  const { pendingBills, totalExpenses } = getBillCycleTotals(bills, activeMonth, activeYear)
   const remaining = income - totalExpenses
   const totalInvested = investments.reduce((s, i) => s + i.amount, 0)
 
@@ -68,7 +70,7 @@ export function generateInsights(
   }
 
   // Parcelas finalizando
-  const installments = bills.filter(b => b.isInstallment)
+  const installments = bills.filter(b => b.isInstallment && !isFinishedInstallment(b))
   const finishing = installments.filter(b => {
     const rem = (b.installmentTotal ?? 0) - (b.installmentPaid ?? 0)
     return rem <= 3 && rem > 0

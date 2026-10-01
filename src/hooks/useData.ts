@@ -99,7 +99,7 @@ export function useDashboardData() {
     .sort((a, b) => a.dueDay - b.dueDay)
 
   const overdue      = pendingBills.filter(b => daysUntilDue(b.dueDay, activeMonth, activeYear) < 0)
-  const installments = bills.filter(b => b.isInstallment)
+  const installments = bills.filter(b => b.isInstallment && (b.installmentPaid ?? 0) < (b.installmentTotal ?? 1))
 
   return {
     profile, bills, investments, goals, goalDeposits,
