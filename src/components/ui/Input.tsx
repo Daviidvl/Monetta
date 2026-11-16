@@ -55,45 +55,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
 Input.displayName = 'Input'
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string
-  error?: string
-  options: { value: string; label: string }[]
-}
-
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
-    return (
-      <div className="flex flex-col gap-1.5">
-        {label && (
-          <label htmlFor={inputId} className="text-sm font-medium text-text-primary">
-            {label}
-          </label>
-        )}
-        <select
-          ref={ref}
-          id={inputId}
-          className={cn(
-            'w-full h-12 px-3 rounded-[14px] border bg-surface-0 text-sm text-text-primary',
-            'border-border-base focus:border-accent-500 focus:ring-0 focus:outline-none focus:shadow-[0_0_0_4px_rgba(122,47,255,.15)]',
-            'transition-all duration-150 appearance-none cursor-pointer',
-            error && 'border-status-danger',
-            className,
-          )}
-          {...props}
-        >
-          {options.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        {error && <p className="text-xs text-status-danger">{error}</p>}
-      </div>
-    )
-  },
-)
-
-Select.displayName = 'Select'
+// The custom Select lives in its own file; re-exported here so existing
+// `import { Input, Select } from './Input'` call sites keep working.
+export { Select, type SelectOption } from './Select'
 
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string

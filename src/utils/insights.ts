@@ -1,6 +1,7 @@
 import type { Bill, Goal, Investment, UserProfile } from '../types'
 import { formatCurrency } from './format'
 import { getBillCycleTotals, isFinishedInstallment } from './bills'
+import { getEmergencyReserve, remainingBalance, summarizeDebts, type FocusMode } from './focusMode'
 
 export interface Insight {
   id: string
@@ -35,6 +36,65 @@ export function generateInsights(
   activeMonth: number,
   activeYear: number,
   limit = 4,
+  mode: FocusMode = 'organize',
+): Insight[] {
+  const base = baseInsights(profile, bills, investments, goals, totalIncome, activeMonth, activeYear)
+  if (!profile) return base
+
+  if (mode === 'debt') {
+    const debt = summarizeDebts(bills.filter(b => b.isInstallment && !isFinishedInstallment(b)))
+    const extra: Insight[] = []
+    if (debt.nextToClear) {
+      extra.push({
+        id: 'debt-next',
+        text: `"${debt.nextToClear.name}" é a dívida mais perto de acabar — faltam ${formatCurrency(remainingBalance(debt.nextToClear))}. Ataque ela primeiro.`,
+        type: 'info',
+      })
+    }
+    if (debt.debts.length > 0) {
+      extra.push({
+        id: 'debt-no-new',
+        text: 'Evite novas parcelas até quitar as atuais — cada uma nova adia sua data de liberdade.',
+        type: 'tip',
+      })
+    }
+    // Investment nudges are noise while the user is paying off debt.
+    const filtered = base.filter(i => i.id !== 'invest-low' && i.id !== 'invested')
+    return [...extra, ...filtered].slice(0, limit)
+  }
+
+  if (mode === 'invest') {
+    const { totalExpenses } = getBillCycleTotals(bills, activeMonth, activeYear)
+    const reserve = getEmergencyReserve(investments, totalExpenses)
+    const extra: Insight[] = []
+    if (reserve.target > 0) {
+      const months = totalExpenses > 0 ? Math.floor(reserve.liquid / totalExpenses) : 0
+      extra.push(reserve.done
+        ? { id: 'reserve-done', text: 'Reserva de emergência completa. Você pode diversificar com mais segurança.', type: 'success' }
+        : { id: 'reserve-progress', text: `Sua reserva cobre ${months} ${months === 1 ? 'mês' : 'meses'} de contas. O ideal são 6 — faltam ${formatCurrency(reserve.missing)}.`, type: 'info' })
+    }
+    const activeInstallments = bills.filter(b => b.isInstallment && !isFinishedInstallment(b))
+    if (activeInstallments.length > 0) {
+      extra.push({
+        id: 'invest-debt-first',
+        text: 'Você ainda tem parcelamentos ativos. Se tiverem juros altos, quitar rende mais que a maioria dos investimentos.',
+        type: 'tip',
+      })
+    }
+    return [...extra, ...base].slice(0, limit)
+  }
+
+  return base.slice(0, limit)
+}
+
+function baseInsights(
+  profile: UserProfile | undefined,
+  bills: Bill[],
+  investments: Investment[],
+  goals: Goal[],
+  totalIncome: number,
+  activeMonth: number,
+  activeYear: number,
 ): Insight[] {
   const insights: Insight[] = []
   if (!profile) return insights
@@ -127,5 +187,5 @@ export function generateInsights(
     }
   }
 
-  return insights.slice(0, limit)
+  return insights
 }

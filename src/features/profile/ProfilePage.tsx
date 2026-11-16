@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { DaySelect } from '../../components/ui/DaySelect'
 import { useProfile } from '../../hooks/useData'
 import { saveProfile } from '../../database/queries'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -13,21 +14,14 @@ import { supabase } from '../../lib/supabaseClient'
 import { parseNumber } from '../../utils/format'
 import { toMonthlyIncome } from '../../utils/income'
 import { INCOME_FREQUENCY_LABELS, type IncomeFrequency, type UserProfile } from '../../types'
+import { GOAL_OPTIONS, FOCUS_MODE_LABELS, getFocusMode } from '../../utils/focusMode'
 
 const frequencyOptions: { value: IncomeFrequency; label: string }[] =
   (['monthly', 'biweekly', 'weekly', 'daily', 'variable'] as const).map(value => ({
     value, label: INCOME_FREQUENCY_LABELS[value],
   }))
 
-const dayOptions = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: `Dia ${i + 1}` }))
-
-const goalOptions = [
-  { value: 'emergency', label: 'Criar reserva de emergência' },
-  { value: 'debt', label: 'Sair das dívidas' },
-  { value: 'invest', label: 'Começar a investir' },
-  { value: 'buy', label: 'Guardar para uma compra grande' },
-  { value: 'control', label: 'Organizar meu orçamento' },
-]
+const goalOptions = GOAL_OPTIONS
 
 function PageLoader() {
   return (
@@ -178,10 +172,11 @@ function ProfileContent({ profile }: { profile: UserProfile }) {
               />
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Dia do pagamento" value={paymentDay} onChange={e => setPaymentDay(e.target.value)} options={dayOptions} />
-              <Select label="Objetivo principal" value={goal} onChange={e => setGoal(e.target.value)} options={goalOptions} />
-            </div>
+            <DaySelect label="Dia do pagamento" value={parseInt(paymentDay)} onChange={d => setPaymentDay(String(d))} />
+            <Select label="Objetivo principal" value={goal} onChange={setGoal} options={goalOptions} />
+            <p className="text-xs text-text-muted -mt-2">
+              Modo do app: <span className="font-medium text-accent-500">{FOCUS_MODE_LABELS[getFocusMode(goal)]}</span>
+            </p>
           </div>
         </Card>
 

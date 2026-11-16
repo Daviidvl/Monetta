@@ -28,7 +28,10 @@ import { useAppStore } from '../../store/useAppStore'
 import { PRIORITY_LABELS, INCOME_CATEGORY_LABELS, INCOME_FREQUENCY_LABELS, type IncomeEntry } from '../../types'
 import { deleteIncome, updateMonthlyIncome } from '../../database/queries'
 import { calcSavingPlan, formatMonths } from '../../utils/goals'
-import { QUICK_ACTIONS } from '../../utils/quickActions'
+import { quickActionsFor } from '../../utils/quickActions'
+import { getFocusMode, summarizeDebts, getEmergencyReserve, remainingBalance } from '../../utils/focusMode'
+import { FocusCard } from './FocusCard'
+import { WealthProjection } from '../health/WealthProjection'
 
 const stagger = {
   hidden: {},
@@ -47,8 +50,17 @@ export function DashboardPage() {
     incomeEntries, baseSalary, extraIncome, totalIncome,
     totalExpenses, totalDebitExpenses, remaining,
     dueSoon, overdue, installments, totalInvested,
-    totalGoalDepositsThisMonth, totalSavedThisMonth,
+    totalInvestedThisMonth, totalGoalDepositsThisMonth, totalSavedThisMonth,
   } = data
+
+  // The onboarding goal decides what the home screen leads with.
+  const mode    = getFocusMode(profile?.financialGoal)
+  const debt    = useMemo(() => summarizeDebts(installments), [installments])
+  const reserve = getEmergencyReserve(investments, totalExpenses + totalDebitExpenses)
+  const hasAnyDebtHistory = bills.some(b => b.isInstallment)
+  const sortedInstallments = mode === 'debt'
+    ? [...installments].sort((a, b) => remainingBalance(a) - remainingBalance(b))
+    : installments
 
   // Live crypto prices for portfolio value
   const cryptoIds = useMemo(
@@ -71,8 +83,8 @@ export function DashboardPage() {
 
   const { theme, toggleTheme, activeMonth, activeYear } = useAppStore()
 
-  const insights   = generateInsights(profile, bills, investments, goals, totalIncome, activeMonth, activeYear)
-  const marketTips = useMarketTips()
+  const insights   = generateInsights(profile, bills, investments, goals, totalIncome, activeMonth, activeYear, 4, mode)
+  const marketTips = useMarketTips(mode)
   const healthReport = calculateHealthScore({
     totalIncome, totalExpenses, totalSavedThisMonth, investments, installments, goals,
     goalDepositsThisMonth: totalGoalDepositsThisMonth,
@@ -92,9 +104,20 @@ export function DashboardPage() {
   const mainGoal    = goals[0]
 
   // Suggestion: show when there's meaningful free cash
-  const showSuggestion = remaining >= 150 && (investments.length > 0 || mainGoal)
   const mainGoalPlan   = mainGoal ? calcSavingPlan(mainGoal, remaining) : null
   const suggestionAmount = mainGoalPlan?.monthlyAmount ?? Math.round(remaining * 0.2)
+
+  // What to do with the free cash depends on the focus mode: pay debt down
+  // faster, fill the emergency reserve / invest, or (default) feed the goal.
+  const debtTarget = debt.nextToClear
+  const debtExtra  = debtTarget ? Math.min(Math.round(remaining * 0.5), remainingBalance(debtTarget)) : 0
+  const investAmount = !reserve.done && reserve.target > 0
+    ? Math.min(Math.round(remaining * 0.3), Math.round(reserve.missing))
+    : Math.round(remaining * 0.3)
+  const showSuggestion =
+    mode === 'debt'   ? remaining >= 100 && !!debtTarget :
+    mode === 'invest' ? remaining >= 100 && investAmount > 0 :
+    remaining >= 150 && (investments.length > 0 || !!mainGoal)
 
   async function handleSaveSalary() {
     const val = parseNumber(salaryInput)
@@ -189,9 +212,24 @@ export function DashboardPage() {
           </Card>
         </motion.div>
 
+        {/* Focus card — changes with the onboarding goal (debt / invest) */}
+        {mode !== 'organize' && (
+          <motion.div variants={fadeUp}>
+            <FocusCard
+              mode={mode}
+              debt={debt}
+              hasAnyDebtHistory={hasAnyDebtHistory}
+              overdueCount={overdue.length}
+              reserve={reserve}
+              portfolioValue={totalCurrentInvested}
+              investedThisMonth={totalInvestedThisMonth}
+            />
+          </motion.div>
+        )}
+
         {/* Quick actions */}
         <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2">
-          {QUICK_ACTIONS.map(({ label, icon: Icon, to }) => (
+          {quickActionsFor(mode).map(({ label, icon: Icon, to }) => (
             <Link
               key={to}
               to={to}
@@ -236,7 +274,23 @@ export function DashboardPage() {
                 <p className="text-sm font-semibold text-text-primary">
                   {formatCurrency(remaining)} livres este mês
                 </p>
-                {mainGoalPlan ? (
+                {mode === 'debt' && debtTarget ? (
+                  <p className="text-sm text-text-secondary mt-0.5">
+                    Use{' '}
+                    <span className="font-medium text-text-primary">{formatCurrency(debtExtra)}</span>
+                    {' '}para adiantar parcelas de{' '}
+                    <span className="font-medium text-text-primary">"{debtTarget.name}"</span>
+                    {' '}— é a dívida mais perto de acabar. Menos uma na lista.
+                  </p>
+                ) : mode === 'invest' ? (
+                  <p className="text-sm text-text-secondary mt-0.5">
+                    {!reserve.done && reserve.target > 0 ? (
+                      <>Guarde <span className="font-medium text-text-primary">{formatCurrency(investAmount)}</span> na sua reserva de emergência (Tesouro Selic ou CDB com liquidez diária).</>
+                    ) : (
+                      <>Aporte <span className="font-medium text-text-primary">{formatCurrency(investAmount)}</span> este mês — 30% do que sobrou, trabalhando por você.</>
+                    )}
+                  </p>
+                ) : mainGoalPlan ? (
                   <p className="text-sm text-text-secondary mt-0.5">
                     Guardando{' '}
                     <span className="font-medium text-text-primary">{formatCurrency(mainGoalPlan.monthlyAmount)}/mês</span>
@@ -255,7 +309,11 @@ export function DashboardPage() {
                 )}
               </div>
               <Link
-                to={mainGoal ? '/metas' : '/investimentos'}
+                to={
+                  mode === 'debt'   ? '/contas?tab=installments' :
+                  mode === 'invest' ? '/investimentos' :
+                  mainGoal ? '/metas' : '/investimentos'
+                }
                 className="text-xs text-status-success font-medium flex-shrink-0 mt-0.5"
               >
                 Ver <ChevronRight size={11} className="inline" />
@@ -287,6 +345,13 @@ export function DashboardPage() {
                 </div>
               </div>
             </Card>
+          </motion.div>
+        )}
+
+        {/* Wealth projection — promoted from the Saúde page in invest mode */}
+        {mode === 'invest' && (
+          <motion.div variants={fadeUp}>
+            <WealthProjection baseline={totalCurrentInvested} monthlyRate={totalSavedThisMonth} />
           </motion.div>
         )}
 
@@ -439,19 +504,31 @@ export function DashboardPage() {
           <motion.div variants={fadeUp}>
             <Card padded={false}>
               <CardHeader className="px-4 pt-4">
-                <CardTitle>Parcelamentos</CardTitle>
+                <CardTitle>{mode === 'debt' ? 'Ordem de quitação' : 'Parcelamentos'}</CardTitle>
                 <Link to="/contas?tab=installments" className="text-xs text-accent-500 font-medium">Ver tudo</Link>
               </CardHeader>
               <div className="px-4 pb-4 space-y-4">
-                {installments.slice(0, 3).map(bill => {
+                {sortedInstallments.slice(0, mode === 'debt' ? 5 : 3).map((bill, idx) => {
                   const total = bill.installmentTotal ?? 1
                   const paid  = bill.installmentPaid ?? 0
                   const rem   = total - paid
                   return (
                     <div key={bill.id}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-sm font-medium text-text-primary">{bill.name}</p>
-                        <p className="text-xs text-text-muted">{paid}/{total}</p>
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <p className="text-sm font-medium text-text-primary flex items-center gap-2 min-w-0">
+                          {mode === 'debt' && (
+                            <span className="w-5 h-5 rounded-full bg-accent-500/10 text-accent-500 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                          )}
+                          <span className="truncate">{bill.name}</span>
+                          {mode === 'debt' && idx === 0 && (
+                            <Badge variant="success" className="text-[10px] flex-shrink-0">Próxima</Badge>
+                          )}
+                        </p>
+                        <p className="text-xs text-text-muted flex-shrink-0">
+                          {mode === 'debt' ? `faltam ${formatCurrency(remainingBalance(bill))}` : `${paid}/${total}`}
+                        </p>
                       </div>
                       <ProgressBar value={paid} max={total} size="sm" />
                       <p className="text-xs text-text-muted mt-1">

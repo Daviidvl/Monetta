@@ -3,8 +3,8 @@ import { Search, RefreshCw, Clock } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input, Select, Textarea } from '../../components/ui/Input'
 import type { Investment, InvestmentType } from '../../types'
-import { INVESTMENT_TYPE_LABELS } from '../../types'
 import { parseNumber, formatCurrency } from '../../utils/format'
+import { INVESTMENT_TYPE_OPTIONS } from '../../utils/categoryVisuals'
 import { addInvestment, updateInvestment } from '../../database/queries'
 import {
   searchCoins,
@@ -17,8 +17,6 @@ interface InvestmentFormProps {
   investment?: Investment
   onClose: () => void
 }
-
-const typeOptions = Object.entries(INVESTMENT_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
 interface CoinResult { id: string; name: string; symbol: string }
 
@@ -210,20 +208,18 @@ export function InvestmentForm({ investment, onClose }: InvestmentFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Type + Platform */}
-      <div className="grid grid-cols-2 gap-3">
-        <Select
-          label="Tipo"
-          value={type}
-          onChange={e => handleTypeChange(e.target.value as InvestmentType)}
-          options={typeOptions}
-        />
-        <Input
-          label="Plataforma"
-          placeholder="Nubank, XP, Binance..."
-          value={platform}
-          onChange={e => setPlatform(e.target.value)}
-        />
-      </div>
+      <Select
+        label="Tipo"
+        value={type}
+        onChange={handleTypeChange}
+        options={INVESTMENT_TYPE_OPTIONS}
+      />
+      <Input
+        label="Plataforma"
+        placeholder="Nubank, XP, Binance..."
+        value={platform}
+        onChange={e => setPlatform(e.target.value)}
+      />
 
       {/* Crypto flow */}
       {isCrypto ? (

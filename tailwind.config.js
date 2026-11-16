@@ -8,6 +8,14 @@ export default {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         heading: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
+      // Tints used across the app (bg-status-success/8, bg-accent-500/6,
+      // Badge's /12…). Without these steps Tailwind silently generated no
+      // class for them, so those soft backgrounds never rendered.
+      opacity: {
+        6:  '0.06',
+        8:  '0.08',
+        12: '0.12',
+      },
       letterSpacing: {
         heading: '-0.02em',
         button: '0.01em',

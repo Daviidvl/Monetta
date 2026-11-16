@@ -7,6 +7,9 @@ interface DebtClearedCelebrationProps {
   onClose: () => void
   billName: string
   installments: number
+  /** That was the user's last active debt — show the "next step: invest" CTA. */
+  allCleared?: boolean
+  onNextStep?: () => void
 }
 
 const PARTICLE_COLORS = ['#7A2FFF', '#9255FF', '#B68CFF', '#46D889', '#D8C2FF']
@@ -40,15 +43,17 @@ function makeParticles(seed: number): Particle[] {
   })
 }
 
-export function DebtClearedCelebration({ open, onClose, billName, installments }: DebtClearedCelebrationProps) {
+export function DebtClearedCelebration({ open, onClose, billName, installments, allCleared, onNextStep }: DebtClearedCelebrationProps) {
   const particles = useMemo(() => (open ? makeParticles(Math.floor(Date.now() % 1000)) : []), [open])
+  const showNextStep = !!allCleared && !!onNextStep
 
   useEffect(() => {
-    if (!open) return
+    // The "you're debt-free" version carries a decision — don't auto-dismiss it.
+    if (!open || showNextStep) return
     const timer = setTimeout(onClose, 6500)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, showNextStep])
 
   return (
     <AnimatePresence>
@@ -106,17 +111,37 @@ export function DebtClearedCelebration({ open, onClose, billName, installments }
               </motion.div>
             </div>
 
-            <h2 className="relative text-xl font-heading font-semibold text-text-primary">Dívida quitada!</h2>
+            <h2 className="relative text-xl font-heading font-semibold text-text-primary">
+              {showNextStep ? 'Você está livre das dívidas!' : 'Dívida quitada!'}
+            </h2>
             <p className="relative mt-1.5 text-sm text-text-muted">
               <span className="font-medium text-text-primary">{billName}</span> foi paga em todas as {installments} parcelas.
+              {showNextStep && ' Era a última. Que tal fazer esse dinheiro trabalhar por você agora?'}
             </p>
 
-            <button
-              onClick={onClose}
-              className="relative mt-6 h-12 w-full rounded-2xl bg-gradient-primary text-sm font-medium tracking-button text-white transition-all hover:brightness-[1.08] hover:shadow-glow active:scale-[0.98]"
-            >
-              Uhul!
-            </button>
+            {showNextStep ? (
+              <>
+                <button
+                  onClick={() => { onNextStep!(); onClose() }}
+                  className="relative mt-6 h-12 w-full rounded-2xl bg-gradient-primary text-sm font-medium tracking-button text-white transition-all hover:brightness-[1.08] hover:shadow-glow active:scale-[0.98]"
+                >
+                  Começar a investir
+                </button>
+                <button
+                  onClick={onClose}
+                  className="relative mt-2 h-10 w-full rounded-2xl text-sm font-medium text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  Agora não
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onClose}
+                className="relative mt-6 h-12 w-full rounded-2xl bg-gradient-primary text-sm font-medium tracking-button text-white transition-all hover:brightness-[1.08] hover:shadow-glow active:scale-[0.98]"
+              >
+                Uhul!
+              </button>
+            )}
           </motion.div>
         </div>
       )}

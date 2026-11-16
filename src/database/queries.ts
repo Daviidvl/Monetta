@@ -139,6 +139,17 @@ export async function updateMonthlyIncome(amount: number): Promise<void> {
   invalidate(queryKeys.profile)
 }
 
+export async function updateFinancialGoal(goal: string): Promise<void> {
+  const existing = await getProfile()
+  if (!existing?.id) return
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ financial_goal: goal, updated_at: new Date().toISOString() })
+    .eq('id', existing.id)
+  if (error) throw new Error(error.message)
+  invalidate(queryKeys.profile)
+}
+
 // ─── Bills ─────────────────────────────────────────────────
 export async function getBills(): Promise<Bill[]> {
   const { data, error } = await supabase.from('bills').select('*').order('due_day', { ascending: true })

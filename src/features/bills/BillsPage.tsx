@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Plus, Search, Receipt, History, ChevronDown } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -13,7 +13,8 @@ import { BillCard } from './BillCard'
 import { BillForm } from './BillForm'
 import { useBills, useProfile } from '../../hooks/useData'
 import { formatCurrency } from '../../utils/format'
-import { getBillHistory, type BillHistoryEntry } from '../../database/queries'
+import { getBillHistory, updateFinancialGoal, type BillHistoryEntry } from '../../database/queries'
+import { getFocusMode } from '../../utils/focusMode'
 import { queryKeys } from '../../database/queryKeys'
 import { isBillScheduled } from '../../utils/date'
 import { isFinishedInstallment, getBillCycleTotals } from '../../utils/bills'
@@ -202,7 +203,9 @@ export function BillsPage() {
   const [celebration, setCelebration] = useState<{ billName: string; installments: number } | null>(null)
 
   const bills = useBills()
-  useProfile()
+  const profile = useProfile()
+  const navigate = useNavigate()
+  const inDebtMode = getFocusMode(profile?.financialGoal) === 'debt'
 
   // Finished installments (e.g. 10/10) are done — hide them from the active
   // bill views entirely, they only matter for Pagas/Histórico from here on.
@@ -350,6 +353,11 @@ export function BillsPage() {
         onClose={() => setCelebration(null)}
         billName={celebration?.billName ?? ''}
         installments={celebration?.installments ?? 0}
+        allCleared={inDebtMode && !activeBills.some(b => b.isInstallment)}
+        onNextStep={async () => {
+          await updateFinancialGoal('invest')
+          navigate('/')
+        }}
       />
     </div>
   )

@@ -47,7 +47,21 @@ html {
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   scroll-behavior: smooth;
+  /* Kills double-tap-to-zoom while keeping normal taps/scroll snappy */
+  touch-action: manipulation;
+}
+
+/* iOS Safari auto-zooms into any focused field under 16px. Forcing 16px on
+   touch-sized screens keeps the app static when tapping inputs/selects. */
+@media (max-width: 1023px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 body {
@@ -97,6 +111,32 @@ input[type='number']::-webkit-inner-spin-button {
 }
 input[type='number'] {
   -moz-appearance: textfield;
+}
+
+/* ─── Native date/time fields ───
+   iOS renders these with their own height/alignment; normalize them so they
+   line up with the other 48px fields, and use dark pickers in dark mode. */
+input[type='date'],
+input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 3rem;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+}
+input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+.dark input[type='date'],
+.dark input[type='datetime-local'] {
+  color-scheme: dark;
 }
 
 /* ─── Utility ─── */

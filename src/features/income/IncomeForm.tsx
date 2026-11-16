@@ -3,8 +3,8 @@ import { Button } from '../../components/ui/Button'
 import { Input, Select, Textarea } from '../../components/ui/Input'
 import { Toggle } from '../../components/ui/Toggle'
 import type { IncomeCategory, IncomeEntry } from '../../types'
-import { INCOME_CATEGORY_LABELS } from '../../types'
 import { parseNumber } from '../../utils/format'
+import { INCOME_CATEGORY_OPTIONS } from '../../utils/categoryVisuals'
 import { addIncome, updateIncome } from '../../database/queries'
 import { getMonth, getYear } from '../../utils/date'
 
@@ -12,8 +12,6 @@ interface IncomeFormProps {
   income?: IncomeEntry
   onClose: () => void
 }
-
-const categoryOptions = Object.entries(INCOME_CATEGORY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 
 export function IncomeForm({ income, onClose }: IncomeFormProps) {
   const [loading, setLoading] = useState(false)
@@ -67,8 +65,8 @@ export function IncomeForm({ income, onClose }: IncomeFormProps) {
       <Select
         label="Tipo"
         value={category}
-        onChange={e => setCategory(e.target.value as IncomeCategory)}
-        options={categoryOptions}
+        onChange={setCategory}
+        options={INCOME_CATEGORY_OPTIONS}
       />
       <Input
         label="Valor"

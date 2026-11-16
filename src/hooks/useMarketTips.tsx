@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { TrendingUp, Lightbulb, CalendarCheck, BarChart2 } from 'lucide-react'
+import { TrendingUp, Lightbulb, CalendarCheck, BarChart2, Flag } from 'lucide-react'
 import { fetchCoinPrice } from './useCryptoPrices'
 import { formatCurrency } from '../utils/format'
+import type { FocusMode } from '../utils/focusMode'
 import type { TipCard } from '../components/ui/TipsCarousel'
 
 // 15 financial tips — one shown per month, cycling through all
@@ -23,7 +24,22 @@ const TIP_POOL: string[] = [
   'Tesouro SELIC é ideal para a reserva de emergência — seguro, conservador e com liquidez diária.',
 ]
 
-export function useMarketTips(): TipCard[] {
+// Shown instead of market/investing tips while the user is in "sair das
+// dívidas" mode — crypto prices are noise when the priority is paying off debt.
+const DEBT_TIP_POOL: string[] = [
+  'Método bola de neve: quite primeiro a menor dívida. Cada uma que some libera dinheiro e motivação para a próxima.',
+  'Método avalanche: se você souber os juros, ataque primeiro a dívida com a maior taxa — é o que mais economiza.',
+  'Rotativo do cartão e cheque especial estão entre as dívidas mais caras que existem. Saia deles primeiro.',
+  'Renegocie: credores costumam dar bons descontos para pagamento à vista ou para trocar por uma dívida mais barata.',
+  'Portabilidade de crédito: você pode levar sua dívida para outro banco com juros menores.',
+  'Evite novas parcelas enquanto quita as atuais — cada parcela nova adia sua liberdade.',
+  '13º e restituição do IR são ótimos para antecipar parcelas — muitos contratos reduzem os juros na antecipação.',
+  'Ao antecipar parcelas, peça ao credor o valor com desconto dos juros. É um direito seu.',
+  'Monte uma mini-reserva de R$ 500 a R$ 1.000 para imprevistos — evita contrair dívida nova no meio do caminho.',
+  'Fique de olho em feirões de renegociação — costumam oferecer descontos altos para quitar à vista.',
+]
+
+export function useMarketTips(mode: FocusMode = 'organize'): TipCard[] {
   const [btcPrice, setBtcPrice] = useState<number | null>(null)
   const [ethPrice, setEthPrice] = useState<number | null>(null)
 
@@ -93,6 +109,22 @@ export function useMarketTips(): TipCard[] {
       }
     }
 
+    if (mode === 'debt') {
+      const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000)
+      const strategyCard: TipCard = {
+        id: 'debt-strategy',
+        label: 'Saindo das dívidas',
+        labelColor: 'text-status-success',
+        bgClass: 'bg-status-success/8',
+        icon: <Flag size={13} />,
+        text: DEBT_TIP_POOL[dayOfYear % DEBT_TIP_POOL.length],
+      }
+      const debtMonthlyCard: TipCard = { ...monthlyCard, text: DEBT_TIP_POOL[(month + 3) % DEBT_TIP_POOL.length] }
+      return thirdCard.id === 'planning'
+        ? [strategyCard, debtMonthlyCard, thirdCard]
+        : [strategyCard, debtMonthlyCard]
+    }
+
     return [marketCard, monthlyCard, thirdCard]
-  }, [btcPrice, ethPrice])
+  }, [btcPrice, ethPrice, mode])
 }

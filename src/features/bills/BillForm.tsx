@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { Input, Select, Textarea } from '../../components/ui/Input'
 import { Toggle } from '../../components/ui/Toggle'
+import { DaySelect } from '../../components/ui/DaySelect'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import type { Bill, BillCategory, Priority } from '../../types'
-import { CATEGORY_LABELS, PRIORITY_LABELS } from '../../types'
 import { parseNumber } from '../../utils/format'
+import { BILL_CATEGORY_OPTIONS, PRIORITY_OPTIONS } from '../../utils/categoryVisuals'
 import { addBill, updateBill } from '../../database/queries'
 
 interface BillFormProps {
@@ -12,19 +14,13 @@ interface BillFormProps {
   onClose: () => void
 }
 
-const categoryOptions = Object.entries(CATEGORY_LABELS).map(([v, l]) => ({ value: v, label: l }))
-const priorityOptions = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
-const dayOptions = [
-  { value: '0', label: 'Data específica' },
-  ...Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: `Dia ${i + 1}` })),
-]
-
 export function BillForm({ bill, onClose }: BillFormProps) {
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(bill?.name ?? '')
   const [category, setCategory] = useState<BillCategory>(bill?.category ?? 'other')
   const [amount, setAmount] = useState(bill?.amount ? String(bill.amount) : '')
-  const [dueDay, setDueDay] = useState(String(bill?.dueDay ?? 1))
+  // Legacy "Data específica" (dueDay 0) was never handled anywhere — fall back to day 1.
+  const [dueDay, setDueDay] = useState(String(bill?.dueDay || 1))
   const [priority, setPriority] = useState<Priority>(bill?.priority ?? 'medium')
   const [isRecurring, setIsRecurring] = useState(bill?.isRecurring ?? true)
   const [isInstallment, setIsInstallment] = useState(bill?.isInstallment ?? false)
@@ -76,38 +72,37 @@ export function BillForm({ bill, onClose }: BillFormProps) {
         autoFocus
       />
 
-      <div className="grid grid-cols-2 gap-3">
-        <Select
-          label="Categoria"
-          value={category}
-          onChange={e => setCategory(e.target.value as BillCategory)}
-          options={categoryOptions}
-        />
-        <Select
-          label="Prioridade"
-          value={priority}
-          onChange={e => setPriority(e.target.value as Priority)}
-          options={priorityOptions}
-        />
-      </div>
+      <Select
+        label="Categoria"
+        value={category}
+        onChange={setCategory}
+        options={BILL_CATEGORY_OPTIONS}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <Input
           label="Valor"
           placeholder="0,00"
           type="number"
+          inputMode="decimal"
           step="0.01"
           value={amount}
           onChange={e => setAmount(e.target.value)}
           prefix={<span className="text-xs font-medium">R$</span>}
         />
-        <Select
+        <DaySelect
           label="Vencimento"
-          value={dueDay}
-          onChange={e => setDueDay(e.target.value)}
-          options={dayOptions}
+          value={parseInt(dueDay)}
+          onChange={d => setDueDay(String(d))}
         />
       </div>
+
+      <SegmentedControl
+        label="Prioridade"
+        value={priority}
+        onChange={setPriority}
+        options={PRIORITY_OPTIONS}
+      />
 
       <div className="space-y-3 pt-1">
         <Toggle
@@ -119,6 +114,7 @@ export function BillForm({ bill, onClose }: BillFormProps) {
           checked={isInstallment}
           onChange={v => { setIsInstallment(v); if (v) setIsRecurring(false) }}
           label="É parcelado"
+          description="Dívidas e compras parceladas — o app acompanha quanto falta quitar."
         />
       </div>
 

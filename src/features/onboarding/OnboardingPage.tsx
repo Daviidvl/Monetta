@@ -4,29 +4,19 @@ import { ChevronRight, TrendingUp, User, Wallet, CalendarDays, Target, Check } f
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { Select } from '../../components/ui/Input'
+import { DayPicker } from '../../components/ui/DayPicker'
 import { AnimatedNumber } from '../../components/ui/AnimatedNumber'
 import { saveProfile } from '../../database/queries'
 import { useAppStore } from '../../store/useAppStore'
 import { parseNumber } from '../../utils/format'
 import { toMonthlyIncome } from '../../utils/income'
 import { INCOME_FREQUENCY_LABELS, type IncomeFrequency } from '../../types'
+import { GOAL_OPTIONS } from '../../utils/focusMode'
 
 const STEP_COUNT = 4
 const stepIcons: LucideIcon[] = [User, Wallet, CalendarDays, Target]
 
-const goalOptions = [
-  { value: 'emergency', label: 'Criar reserva de emergência' },
-  { value: 'debt', label: 'Sair das dívidas' },
-  { value: 'invest', label: 'Começar a investir' },
-  { value: 'buy', label: 'Guardar para uma compra grande' },
-  { value: 'control', label: 'Organizar meu orçamento' },
-]
-
-const dayOptions = Array.from({ length: 31 }, (_, i) => ({
-  value: String(i + 1),
-  label: `Dia ${i + 1}`,
-}))
+const goalOptions = GOAL_OPTIONS
 
 const frequencyOptions: { value: IncomeFrequency; label: string }[] =
   (['monthly', 'biweekly', 'weekly', 'daily', 'variable'] as const).map(value => ({
@@ -414,16 +404,15 @@ export function OnboardingPage() {
             )}
             {step === 2 && (
               <Step key="payday" title={paydayCopy[frequency].title} subtitle={paydayCopy[frequency].subtitle} direction={direction} icon={stepIcons[2]}>
-                <Select
+                <DayPicker
                   label={paydayCopy[frequency].label}
-                  value={paymentDay}
-                  onChange={e => setPaymentDay(e.target.value)}
-                  options={dayOptions}
+                  value={parseInt(paymentDay)}
+                  onChange={d => setPaymentDay(String(d))}
                 />
               </Step>
             )}
             {step === 3 && (
-              <Step key="goal" title="Qual é seu principal objetivo?" subtitle="Foque em um objetivo por vez — é mais eficaz." direction={direction} icon={stepIcons[3]}>
+              <Step key="goal" title="Qual é seu principal objetivo?" subtitle="O Monetta se adapta à sua resposta. Dá para mudar depois no Perfil." direction={direction} icon={stepIcons[3]}>
                 <div className="flex flex-col gap-2">
                   {goalOptions.map((opt, i) => (
                     <motion.button
@@ -433,7 +422,7 @@ export function OnboardingPage() {
                       transition={{ delay: 0.05 * i, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setGoal(opt.value)}
-                      className={`relative flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-sm font-medium text-left overflow-hidden transition-colors ${
+                      className={`relative flex items-center gap-3 px-4 py-3 rounded-2xl border text-sm font-medium text-left overflow-hidden transition-colors ${
                         goal === opt.value
                           ? 'border-accent-500 text-accent-500'
                           : 'border-border-base text-text-primary hover:border-border-strong hover:bg-surface-50'
@@ -461,7 +450,10 @@ export function OnboardingPage() {
                           )}
                         </AnimatePresence>
                       </span>
-                      <span className="relative z-10">{opt.label}</span>
+                      <span className="relative z-10 flex flex-col min-w-0">
+                        <span>{opt.label}</span>
+                        <span className="text-xs font-normal text-text-muted mt-0.5 leading-snug">{opt.description}</span>
+                      </span>
                     </motion.button>
                   ))}
                 </div>
