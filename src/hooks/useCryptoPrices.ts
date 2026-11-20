@@ -35,7 +35,7 @@ export async function fetchCoinPrice(coinId: string): Promise<number | null> {
 
   const promise = (async () => {
     const res = await fetchWithRetry(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=brl`,
+      `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coinId)}&vs_currencies=brl`,
     )
     if (!res) return null
     const data = (await res.json()) as Record<string, CoinPrice>
@@ -62,7 +62,7 @@ async function fetchMultiplePrices(coinIds: string[]): Promise<PriceMap> {
     if (!inFlight.has(batchKey)) {
       const promise = (async () => {
         const res = await fetchWithRetry(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${batchKey}&vs_currencies=brl`,
+          `https://api.coingecko.com/api/v3/simple/price?ids=${[...toFetch].sort().map(encodeURIComponent).join(',')}&vs_currencies=brl`,
         )
         if (res) {
           const data = (await res.json()) as Record<string, CoinPrice>
@@ -172,7 +172,7 @@ export async function fetchHistoricalPrice(
   try {
     // Try market_chart/range — hourly granularity for data < 90 days old
     const rangeRes = await fetchWithRetry(
-      `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart/range?vs_currency=brl&from=${from}&to=${to}`,
+      `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}/market_chart/range?vs_currency=brl&from=${from}&to=${to}`,
     )
     if (rangeRes) {
       const data = (await rangeRes.json()) as { prices: [number, number][] }
@@ -197,7 +197,7 @@ export async function fetchHistoricalPrice(
     const mm   = String(datetime.getMonth() + 1).padStart(2, '0')
     const yyyy = datetime.getFullYear()
     const histRes = await fetchWithRetry(
-      `https://api.coingecko.com/api/v3/coins/${coinId}/history?date=${dd}-${mm}-${yyyy}&localization=false`,
+      `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}/history?date=${dd}-${mm}-${yyyy}&localization=false`,
     )
     if (histRes) {
       const h = (await histRes.json()) as { market_data?: { current_price?: { brl?: number } } }

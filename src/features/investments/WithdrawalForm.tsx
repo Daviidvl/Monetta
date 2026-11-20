@@ -6,6 +6,7 @@ import type { Investment } from '../../types'
 import { parseNumber, formatCurrency } from '../../utils/format'
 import { addWithdrawal } from '../../database/queries'
 import { fetchCoinPrice } from '../../hooks/useCryptoPrices'
+import { useToastStore } from '../../store/useToastStore'
 
 interface WithdrawalFormProps {
   investment: Investment
@@ -24,6 +25,7 @@ export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
 
   const [livePrice, setLivePrice]     = useState<number | null>(null)
   const [loadingPrice, setLoadingPrice] = useState(isCrypto)
+  const pushToast = useToastStore(s => s.push)
 
   // For crypto, what's available to withdraw is the CURRENT market value
   // (quantity × live price), not the original cost-basis `amount` — the
@@ -93,6 +95,10 @@ export function WithdrawalForm({ investment, onClose }: WithdrawalFormProps) {
         notes: notes.trim() || undefined,
       })
       onClose()
+    } catch (err) {
+      // The server re-validates (add_withdrawal RPC) — e.g. the position
+      // changed on another device since this form loaded.
+      pushToast({ message: err instanceof Error ? err.message : 'Não foi possível registrar o saque.' })
     } finally {
       setLoading(false)
     }

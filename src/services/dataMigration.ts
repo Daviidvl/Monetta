@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabaseClient'
 import { toSnakeCase } from '../database/caseMap'
 import {
-  getLocalDexieSnapshot, hasLocalDexieData,
+  getLocalDexieSnapshot, hasLocalDexieData, clearLocalDexieData,
   saveProfile, addInvestment, addIncome, addGoal, addDebitExpense, addBill, addPaymentRecord,
 } from '../database/queries'
 
-export { hasLocalDexieData }
+export { hasLocalDexieData, clearLocalDexieData }
 
 // The legacy Dexie rows carry a numeric `id` (auto-increment) that isn't a
 // valid Postgres uuid — it must never leak into an insert payload, or the
@@ -69,4 +69,7 @@ export async function migrateLocalDataToCloud(): Promise<void> {
     }))
     if (error) throw new Error(error.message)
   }
+
+  // Only reached if every insert above succeeded (each one throws on error).
+  await clearLocalDexieData()
 }

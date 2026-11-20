@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/layout/PageHeader'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input, Select } from '../../components/ui/Input'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { Modal } from '../../components/ui/Modal'
 import { DaySelect } from '../../components/ui/DaySelect'
 import { useProfile } from '../../hooks/useData'
 import { saveProfile } from '../../database/queries'
@@ -53,6 +53,7 @@ function ProfileContent({ profile }: { profile: UserProfile }) {
 
   const [loggingOut, setLoggingOut] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
@@ -93,16 +94,37 @@ function ProfileContent({ profile }: { profile: UserProfile }) {
     await supabase.auth.signOut()
   }
 
-  async function handleDeleteAccount() {
+  function openDeleteDialog() {
+    setDeletePassword('')
+    setDeleteError('')
+    setConfirmDeleteOpen(true)
+  }
+
+  function closeDeleteDialog() {
+    if (deleting) return
+    setConfirmDeleteOpen(false)
+    setDeletePassword('')
+  }
+
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user?.email || !deletePassword) return
     setDeleting(true)
     setDeleteError('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Sessão inválida — faça login novamente.')
+      // Re-authenticate right before deleting: the API only accepts a token
+      // whose sign-in happened in the last few minutes (JWT `amr`), so an
+      // unattended open session can't be used to wipe the account.
+      const { data, error } = await supabase.auth.signInWithPassword({ email: user.email, password: deletePassword })
+      if (error || !data.session) {
+        throw new Error(error?.message.includes('Invalid login credentials')
+          ? 'Senha incorreta.'
+          : 'Não foi possível confirmar sua senha. Tente novamente.')
+      }
 
       const res = await fetch('/api/delete-account', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
       })
       if (!res.ok) throw new Error('Não foi possível apagar a conta. Tente novamente.')
 
@@ -204,25 +226,44 @@ function ProfileContent({ profile }: { profile: UserProfile }) {
                 variant="secondary"
                 className="text-status-danger border-status-danger/30 hover:bg-status-danger/8 flex-shrink-0"
                 icon={<Trash2 size={15} />}
-                onClick={() => setConfirmDeleteOpen(true)}
+                onClick={openDeleteDialog}
               >
                 Apagar conta
               </Button>
             </div>
-            {deleteError && <p className="text-xs text-status-danger mt-3">{deleteError}</p>}
           </Card>
         </motion.div>
       </div>
 
-      <ConfirmDialog
+      <Modal
         open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-        onConfirm={handleDeleteAccount}
+        onClose={closeDeleteDialog}
         title="Apagar sua conta?"
         description="Isso remove permanentemente sua conta e todos os dados associados. Não pode ser desfeito."
-        confirmLabel="Apagar conta"
-        loading={deleting}
-      />
+        size="sm"
+      >
+        <form onSubmit={handleDeleteAccount} className="flex flex-col gap-4">
+          <Input
+            label="Confirme sua senha"
+            type="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={deletePassword}
+            onChange={e => setDeletePassword(e.target.value)}
+            autoFocus
+            required
+          />
+          {deleteError && <p className="text-xs text-status-danger -mt-2">{deleteError}</p>}
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" fullWidth onClick={closeDeleteDialog} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="danger" fullWidth loading={deleting} disabled={!deletePassword}>
+              Apagar conta
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

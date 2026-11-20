@@ -731,9 +731,23 @@ export async function getLocalDexieSnapshot() {
 }
 
 export async function hasLocalDexieData(): Promise<boolean> {
-  const counts = await Promise.all([
-    db.bills.count(), db.investments.count(), db.goals.count(),
-    db.incomes.count(), db.debitExpenses.count(), db.userProfile.count(),
-  ])
-  return counts.some(c => c > 0)
+  // IndexedDB can be unavailable (private browsing, blocked storage) — treat
+  // that as "nothing to migrate" instead of leaving the app stuck loading.
+  try {
+    const counts = await Promise.all([
+      db.bills.count(), db.investments.count(), db.goals.count(),
+      db.incomes.count(), db.debitExpenses.count(), db.userProfile.count(),
+    ])
+    return counts.some(c => c > 0)
+  } catch {
+    return false
+  }
+}
+
+// Removes the legacy plaintext copy from this browser once it has been
+// uploaded or explicitly discarded — otherwise it lingers indefinitely and
+// gets offered to whichever account logs in next on a shared device.
+// `disableAutoOpen: false` keeps `db` usable (empty) for later checks.
+export async function clearLocalDexieData(): Promise<void> {
+  await db.delete({ disableAutoOpen: false })
 }

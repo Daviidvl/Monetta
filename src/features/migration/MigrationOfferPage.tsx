@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { CloudUpload } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
-import { migrateLocalDataToCloud } from '../../services/dataMigration'
+import { migrateLocalDataToCloud, clearLocalDexieData } from '../../services/dataMigration'
 
 interface MigrationOfferPageProps {
   onDone: () => void
@@ -10,6 +10,7 @@ interface MigrationOfferPageProps {
 
 export function MigrationOfferPage({ onDone }: MigrationOfferPageProps) {
   const [loading, setLoading] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
   const [error, setError] = useState('')
 
   async function handleUpload() {
@@ -21,6 +22,18 @@ export function MigrationOfferPage({ onDone }: MigrationOfferPageProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Algo deu errado ao enviar os dados.')
       setLoading(false)
+    }
+  }
+
+  async function handleDiscard() {
+    setDiscarding(true)
+    setError('')
+    try {
+      await clearLocalDexieData()
+      onDone()
+    } catch {
+      setError('Não foi possível apagar os dados locais.')
+      setDiscarding(false)
     }
   }
 
@@ -41,16 +54,20 @@ export function MigrationOfferPage({ onDone }: MigrationOfferPageProps) {
         </h1>
         <p className="text-sm text-text-muted mb-6">
           Contas, investimentos, metas e gastos salvos localmente antes do login. Quer enviar tudo para sua conta agora?
+          Depois do envio, a cópia local é apagada deste navegador.
         </p>
 
         {error && <p className="text-xs text-status-danger mb-4">{error}</p>}
 
         <div className="flex flex-col gap-3">
-          <Button variant="primary" size="lg" fullWidth loading={loading} onClick={handleUpload}>
+          <Button variant="primary" size="lg" fullWidth loading={loading} disabled={discarding} onClick={handleUpload}>
             Enviar para minha conta
           </Button>
-          <Button variant="ghost" fullWidth disabled={loading} onClick={onDone}>
-            Ignorar e continuar
+          <Button variant="secondary" fullWidth loading={discarding} disabled={loading} onClick={handleDiscard}>
+            Não são meus — apagar deste navegador
+          </Button>
+          <Button variant="ghost" fullWidth disabled={loading || discarding} onClick={onDone}>
+            Agora não
           </Button>
         </div>
       </motion.div>
