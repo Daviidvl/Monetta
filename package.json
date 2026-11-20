@@ -19,7 +19,7 @@
     "lucide-react": "^0.460.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.27.0",
+    "react-router-dom": "^6.30.6",
     "tailwind-merge": "^2.5.4",
     "zustand": "^5.0.1"
   },
@@ -28,7 +28,7 @@
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@vercel/node": "^3.2.24",
+    "@vercel/node": "^29.0.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.13.0",
